@@ -34,7 +34,7 @@ defmodule ChromeRemoteInterface.Session do
   @spec list_pages(Server.t()) :: HTTP.success_http_response() | HTTP.error_http_response()
   def list_pages(server) do
     server
-    |> HTTP.call("/json/list")
+    |> HTTP.call(:get, "/json/list")
   end
 
   @doc """
@@ -45,7 +45,7 @@ defmodule ChromeRemoteInterface.Session do
   @spec new_page(Server.t()) :: HTTP.success_http_response() | HTTP.error_http_response()
   def new_page(server) do
     server
-    |> HTTP.call("/json/new")
+    |> HTTP.call(:post, "/json/new")
   end
 
   @doc """
@@ -57,7 +57,7 @@ defmodule ChromeRemoteInterface.Session do
           HTTP.success_http_response() | HTTP.error_http_response()
   def activate_page(server, id) do
     server
-    |> HTTP.call("/json/activate/#{id}")
+    |> HTTP.call(:get, "/json/activate/#{id}")
   end
 
   @doc """
@@ -69,7 +69,7 @@ defmodule ChromeRemoteInterface.Session do
           HTTP.success_http_response() | HTTP.error_http_response()
   def close_page(server, id) do
     server
-    |> HTTP.call("/json/close/#{id}")
+    |> HTTP.call(:get, "/json/close/#{id}")
   end
 
   @doc """
@@ -80,6 +80,6 @@ defmodule ChromeRemoteInterface.Session do
   @spec version(Server.t()) :: HTTP.success_http_response() | HTTP.error_http_response()
   def version(server) do
     server
-    |> HTTP.call("/json/version")
+    |> HTTP.call(:get, "/json/version")
   end
 end

@@ -11,4 +11,8 @@ defmodule ChromeRemoteInterface.Websocket do
     send(state, {:message, frame_data})
     {:ok, state}
   end
+
+  def handle_info({:ssl_closed, _}, _state) do
+    {:close, 0}
+  end
 end

@@ -2,10 +2,12 @@
 
 [![CircleCI](https://img.shields.io/circleci/project/github/andrewvy/chrome-remote-interface.svg)](https://circleci.com/gh/andrewvy/chrome-remote-interface)
 
-This library provides an Elixir Client to the [Chrome Debugging Protocol](https://chromedevtools.github.io/devtools-protocol/) with
-a small layer of abstraction for handling and subscribing to domain events.
+This library provides an Elixir Client to the
+[Chrome Debugging Protocol](https://chromedevtools.github.io/devtools-protocol/)
+with a small layer of abstraction for handling and subscribing to domain events.
 
-Note: This is a super minimal client wrapper around the Chrome Debugging Protocol.
+Note: This is a super minimal client wrapper around the Chrome Debugging
+Protocol.
 
 ## Installation
 
@@ -22,25 +24,19 @@ end
 ### Chrome DevTools Protocol Selection
 
 Chrome Remote Interface generated its API at compile time from the protocol
-definition released by the Chrome DevTools Team.
-For more info see: [https://chromedevtools.github.io/devtools-protocol/](https://chromedevtools.github.io/devtools-protocol/)
-
-This can be overridden by setting `CRI_PROTOCOL_VERSION` environment variable
-to:
-* 1-2
-* 1-3 * default
-* tot
+definition released by the Chrome DevTools Team. For more info see:
+[https://chromedevtools.github.io/devtools-protocol/](https://chromedevtools.github.io/devtools-protocol/)
 
 Example:
+
 ```
-CRI_PROTOCOL_VERSION=1-2 mix compile
-CRI_PROTOCOL_VERSION=1-3 mix compile
-CRI_PROTOCOL_VERSION=tot mix compile
+mix compile
 ```
 
 ## Usage
 
-> Note: In these examples, it assumes you're already running chrome headless with remote debugging enabled.
+> Note: In these examples, it assumes you're already running chrome headless
+> with remote debugging enabled.
 
 ```bash
 chrome --headless --disable-gpu --remote-debugging-port=9222

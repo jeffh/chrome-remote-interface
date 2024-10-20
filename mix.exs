@@ -4,12 +4,12 @@ defmodule ChromeRemoteInterface.Mixfile do
   def project do
     [
       app: :chrome_remote_interface,
-      version: "0.4.1",
+      version: "0.4.2",
       elixir: "~> 1.5",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       name: "Chrome Remote Interface",
-      source_url: "https://github.com/andrewvy/chrome-remote-interface",
+      source_url: "https://github.com/jeffh/chrome-remote-interface",
       description: description(),
       package: package()
     ]
@@ -25,10 +25,10 @@ defmodule ChromeRemoteInterface.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:jason, "~> 1.1"},
-      {:hackney, "~> 1.8 or ~> 1.7 or ~> 1.6"},
+      {:jason, "~> 1.4"},
+      {:hackney, "~> 1.20"},
       {:websockex, "~> 0.4.0"},
-      {:ex_doc, "~> 0.19", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 
@@ -38,10 +38,10 @@ defmodule ChromeRemoteInterface.Mixfile do
 
   defp package do
     [
-      maintainers: ["andrew@andrewvy.com"],
+      maintainers: ["jeff@jeffhui.net"],
       licenses: ["MIT"],
       links: %{
-        "Github" => "https://github.com/andrewvy/chrome-remote-interface"
+        "Github" => "https://github.com/jeffh/chrome-remote-interface"
       }
     ]
   end

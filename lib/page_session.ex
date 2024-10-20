@@ -13,7 +13,8 @@ defmodule ChromeRemoteInterface.PageSession do
             socket: nil,
             callbacks: [],
             event_subscribers: %{},
-            ref_id: 1
+            ref_id: 1,
+            message_base: %{}
 
   # ---
   # Public API
@@ -77,6 +78,10 @@ defmodule ChromeRemoteInterface.PageSession do
     GenServer.call(pid, {:unsubscribe_all, subscriber_pid})
   end
 
+  def set_context(pid, message_base) do
+    GenServer.cast(pid, {:set_message_base, message_base})
+  end
+
   @doc """
   Executes an RPC command with the given options.
 
@@ -119,14 +124,23 @@ defmodule ChromeRemoteInterface.PageSession do
   # ---
 
   def init(url) do
-    {:ok, socket} = ChromeRemoteInterface.Websocket.start_link(url)
+    case ChromeRemoteInterface.Websocket.start_link(url) do
+      {:ok, socket} ->
+        state = %__MODULE__{
+          url: url,
+          socket: socket,
+          message_base: %{}
+        }
 
-    state = %__MODULE__{
-      url: url,
-      socket: socket
-    }
+        {:ok, state}
 
-    {:ok, state}
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def handle_cast({:set_message_base, message_base}, state) do
+    {:noreply, %{state | message_base: message_base}}
   end
 
   def handle_cast({:cast_command, method, params, from}, state) do
@@ -222,9 +236,10 @@ defmodule ChromeRemoteInterface.PageSession do
 
   def handle_info({:send_rpc_request, ref_id, socket, method, params}, state) do
     message = %{
-      "id" => ref_id,
-      "method" => method,
-      "params" => params
+      state.message_base
+      | "id" => ref_id,
+        "method" => method,
+        "params" => params
     }
 
     json = Jason.encode!(message)
