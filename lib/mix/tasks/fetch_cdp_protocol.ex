@@ -12,7 +12,7 @@ defmodule Mix.Tasks.FetchCdpProtocol do
   @protocol_sources %{
     "tot" => %{
       url:
-        "https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/json/browser_protocol.json",
+        "https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/8297006455052afdec6b98e5cf96c09a52abde26/json/browser_protocol.json",
       output: "priv/tot/protocol.json"
     }
   }

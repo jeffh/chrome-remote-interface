@@ -1066,9 +1066,7 @@
                         "WarnAttributeValueExceedsMaxSize",
                         "WarnDomainNonASCII",
                         "WarnThirdPartyPhaseout",
-                        "WarnCrossSiteRedirectDowngradeChangesInclusion",
-                        "WarnDeprecationTrialMetadata",
-                        "WarnThirdPartyCookieHeuristic"
+                        "WarnCrossSiteRedirectDowngradeChangesInclusion"
                     ]
                 },
                 {
@@ -1489,8 +1487,7 @@
                         "NoRegisterSourceHeader",
                         "NoRegisterTriggerHeader",
                         "NoRegisterOsSourceHeader",
-                        "NoRegisterOsTriggerHeader",
-                        "NavigationRegistrationUniqueScopeAlreadySet"
+                        "NoRegisterOsTriggerHeader"
                     ]
                 },
                 {
@@ -1780,7 +1777,7 @@
                         "ThirdPartyCookiesBlocked",
                         "NotSignedInWithIdp",
                         "MissingTransientUserActivation",
-                        "ReplacedByActiveMode",
+                        "ReplacedByButtonMode",
                         "InvalidFieldsSpecified",
                         "RelyingPartyOriginIsOpaque",
                         "TypeNotMatching"
@@ -2180,25 +2177,12 @@
         },
         {
             "domain": "Extensions",
-            "description": "Defines commands and events for browser extensions.",
+            "description": "Defines commands and events for browser extensions. Available if the client\nis connected using the --remote-debugging-pipe flag and\nthe --enable-unsafe-extension-debugging flag is set.",
             "experimental": true,
-            "types": [
-                {
-                    "id": "StorageArea",
-                    "description": "Storage areas.",
-                    "type": "string",
-                    "enum": [
-                        "session",
-                        "local",
-                        "sync",
-                        "managed"
-                    ]
-                }
-            ],
             "commands": [
                 {
                     "name": "loadUnpacked",
-                    "description": "Installs an unpacked extension from the filesystem similar to\n--load-extension CLI flags. Returns extension ID once the extension\nhas been installed. Available if the client is connected using the\n--remote-debugging-pipe flag and the --enable-unsafe-extension-debugging\nflag is set.",
+                    "description": "Installs an unpacked extension from the filesystem similar to\n--load-extension CLI flags. Returns extension ID once the extension\nhas been installed.",
                     "parameters": [
                         {
                             "name": "path",
@@ -2211,98 +2195,6 @@
                             "name": "id",
                             "description": "Extension id.",
                             "type": "string"
-                        }
-                    ]
-                },
-                {
-                    "name": "getStorageItems",
-                    "description": "Gets data from extension storage in the given `storageArea`. If `keys` is\nspecified, these are used to filter the result.",
-                    "parameters": [
-                        {
-                            "name": "id",
-                            "description": "ID of extension.",
-                            "type": "string"
-                        },
-                        {
-                            "name": "storageArea",
-                            "description": "StorageArea to retrieve data from.",
-                            "$ref": "StorageArea"
-                        },
-                        {
-                            "name": "keys",
-                            "description": "Keys to retrieve.",
-                            "optional": true,
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ],
-                    "returns": [
-                        {
-                            "name": "data",
-                            "type": "object"
-                        }
-                    ]
-                },
-                {
-                    "name": "removeStorageItems",
-                    "description": "Removes `keys` from extension storage in the given `storageArea`.",
-                    "parameters": [
-                        {
-                            "name": "id",
-                            "description": "ID of extension.",
-                            "type": "string"
-                        },
-                        {
-                            "name": "storageArea",
-                            "description": "StorageArea to remove data from.",
-                            "$ref": "StorageArea"
-                        },
-                        {
-                            "name": "keys",
-                            "description": "Keys to remove.",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "clearStorageItems",
-                    "description": "Clears extension storage in the given `storageArea`.",
-                    "parameters": [
-                        {
-                            "name": "id",
-                            "description": "ID of extension.",
-                            "type": "string"
-                        },
-                        {
-                            "name": "storageArea",
-                            "description": "StorageArea to remove data from.",
-                            "$ref": "StorageArea"
-                        }
-                    ]
-                },
-                {
-                    "name": "setStorageItems",
-                    "description": "Sets `values` in extension storage in the given `storageArea`. The provided `values`\nwill be merged with existing values in the storage area.",
-                    "parameters": [
-                        {
-                            "name": "id",
-                            "description": "ID of extension.",
-                            "type": "string"
-                        },
-                        {
-                            "name": "storageArea",
-                            "description": "StorageArea to set data in.",
-                            "$ref": "StorageArea"
-                        },
-                        {
-                            "name": "values",
-                            "description": "Values to set.",
-                            "type": "object"
                         }
                     ]
                 }
@@ -2779,7 +2671,6 @@
                         "videoCapturePanTiltZoom",
                         "wakeLockScreen",
                         "wakeLockSystem",
-                        "webAppInstallation",
                         "windowManagement"
                     ]
                 },
@@ -4281,6 +4172,26 @@
                     ]
                 },
                 {
+                    "id": "CSSPositionFallbackRule",
+                    "description": "CSS position-fallback rule representation.",
+                    "deprecated": true,
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "name",
+                            "$ref": "Value"
+                        },
+                        {
+                            "name": "tryRules",
+                            "description": "List of keyframes.",
+                            "type": "array",
+                            "items": {
+                                "$ref": "CSSTryRule"
+                            }
+                        }
+                    ]
+                },
+                {
                     "id": "CSSPositionTryRule",
                     "description": "CSS @position-try rule representation.",
                     "type": "object",
@@ -4709,6 +4620,16 @@
                             }
                         },
                         {
+                            "name": "cssPositionFallbackRules",
+                            "description": "A list of CSS position fallbacks matching this node.",
+                            "deprecated": true,
+                            "optional": true,
+                            "type": "array",
+                            "items": {
+                                "$ref": "CSSPositionFallbackRule"
+                            }
+                        },
+                        {
                             "name": "cssPositionTryRules",
                             "description": "A list of CSS @position-try rules matching this node, based on the position-try-fallbacks property.",
                             "optional": true,
@@ -4716,12 +4637,6 @@
                             "items": {
                                 "$ref": "CSSPositionTryRule"
                             }
-                        },
-                        {
-                            "name": "activePositionFallbackIndex",
-                            "description": "Index of the active fallback in the applied position-try-fallback property,\nwill not be set if there is no active position-try fallback.",
-                            "optional": true,
-                            "type": "integer"
                         },
                         {
                             "name": "cssPropertyRules",
@@ -5659,7 +5574,6 @@
                         "after",
                         "marker",
                         "backdrop",
-                        "column",
                         "selection",
                         "search-text",
                         "target-text",
@@ -5669,8 +5583,6 @@
                         "first-line-inherited",
                         "scroll-marker",
                         "scroll-marker-group",
-                        "scroll-next-button",
-                        "scroll-prev-button",
                         "scrollbar",
                         "scrollbar-thumb",
                         "scrollbar-button",
@@ -5683,11 +5595,7 @@
                         "view-transition-group",
                         "view-transition-image-pair",
                         "view-transition-old",
-                        "view-transition-new",
-                        "placeholder",
-                        "file-selector-button",
-                        "details-content",
-                        "picker"
+                        "view-transition-new"
                     ]
                 },
                 {
@@ -5937,30 +5845,6 @@
                             "name": "assignedSlot",
                             "optional": true,
                             "$ref": "BackendNode"
-                        },
-                        {
-                            "name": "isScrollable",
-                            "experimental": true,
-                            "optional": true,
-                            "type": "boolean"
-                        }
-                    ]
-                },
-                {
-                    "id": "DetachedElementInfo",
-                    "description": "A structure to hold the top-level node of a detached tree and an array of its retained descendants.",
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "treeNode",
-                            "$ref": "Node"
-                        },
-                        {
-                            "name": "retainedNodeIds",
-                            "type": "array",
-                            "items": {
-                                "$ref": "NodeId"
-                            }
                         }
                     ]
                 },
@@ -7053,21 +6937,6 @@
                     ]
                 },
                 {
-                    "name": "getDetachedDomNodes",
-                    "description": "Returns list of detached nodes",
-                    "experimental": true,
-                    "returns": [
-                        {
-                            "name": "detachedNodes",
-                            "description": "The list of detached nodes",
-                            "type": "array",
-                            "items": {
-                                "$ref": "DetachedElementInfo"
-                            }
-                        }
-                    ]
-                },
-                {
                     "name": "setInspectedNode",
                     "description": "Enables console to refer to the node with given id via $x (see Command Line API for more details\n$x functions).",
                     "experimental": true,
@@ -7412,23 +7281,6 @@
                     "name": "topLayerElementsUpdated",
                     "description": "Called when top layer elements are changed.",
                     "experimental": true
-                },
-                {
-                    "name": "scrollableFlagUpdated",
-                    "description": "Fired when a node's scrollability state changes.",
-                    "experimental": true,
-                    "parameters": [
-                        {
-                            "name": "nodeId",
-                            "description": "The id of the node.",
-                            "$ref": "DOM.NodeId"
-                        },
-                        {
-                            "name": "isScrollable",
-                            "description": "If the node is scrollable.",
-                            "type": "boolean"
-                        }
-                    ]
                 },
                 {
                     "name": "pseudoElementRemoved",
@@ -9166,6 +9018,7 @@
                         "gyroscope",
                         "linear-acceleration",
                         "magnetometer",
+                        "proximity",
                         "relative-orientation"
                     ]
                 },
@@ -9263,37 +9116,6 @@
                             "name": "quaternion",
                             "optional": true,
                             "$ref": "SensorReadingQuaternion"
-                        }
-                    ]
-                },
-                {
-                    "id": "PressureSource",
-                    "experimental": true,
-                    "type": "string",
-                    "enum": [
-                        "cpu"
-                    ]
-                },
-                {
-                    "id": "PressureState",
-                    "experimental": true,
-                    "type": "string",
-                    "enum": [
-                        "nominal",
-                        "fair",
-                        "serious",
-                        "critical"
-                    ]
-                },
-                {
-                    "id": "PressureMetadata",
-                    "experimental": true,
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "available",
-                            "optional": true,
-                            "type": "boolean"
                         }
                     ]
                 },
@@ -9650,41 +9472,6 @@
                         {
                             "name": "reading",
                             "$ref": "SensorReading"
-                        }
-                    ]
-                },
-                {
-                    "name": "setPressureSourceOverrideEnabled",
-                    "description": "Overrides a pressure source of a given type, as used by the Compute\nPressure API, so that updates to PressureObserver.observe() are provided\nvia setPressureStateOverride instead of being retrieved from\nplatform-provided telemetry data.",
-                    "experimental": true,
-                    "parameters": [
-                        {
-                            "name": "enabled",
-                            "type": "boolean"
-                        },
-                        {
-                            "name": "source",
-                            "$ref": "PressureSource"
-                        },
-                        {
-                            "name": "metadata",
-                            "optional": true,
-                            "$ref": "PressureMetadata"
-                        }
-                    ]
-                },
-                {
-                    "name": "setPressureStateOverride",
-                    "description": "Provides a given pressure state that will be processed and eventually be\ndelivered to PressureObserver users. |source| must have been previously\noverridden by setPressureSourceOverrideEnabled.",
-                    "experimental": true,
-                    "parameters": [
-                        {
-                            "name": "source",
-                            "$ref": "PressureSource"
-                        },
-                        {
-                            "name": "state",
-                            "$ref": "PressureState"
                         }
                     ]
                 },
@@ -12174,29 +11961,11 @@
                             "type": "number"
                         }
                     ]
-                },
-                {
-                    "id": "DOMCounter",
-                    "description": "DOM object counter data.",
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "name",
-                            "description": "Object name. Note: object names should be presumed volatile and clients should not expect\nthe returned names to be consistent across runs.",
-                            "type": "string"
-                        },
-                        {
-                            "name": "count",
-                            "description": "Object count.",
-                            "type": "integer"
-                        }
-                    ]
                 }
             ],
             "commands": [
                 {
                     "name": "getDOMCounters",
-                    "description": "Retruns current DOM object counters.",
                     "returns": [
                         {
                             "name": "documents",
@@ -12213,22 +11982,7 @@
                     ]
                 },
                 {
-                    "name": "getDOMCountersForLeakDetection",
-                    "description": "Retruns DOM object counters after preparing renderer for leak detection.",
-                    "returns": [
-                        {
-                            "name": "counters",
-                            "description": "DOM object counters.",
-                            "type": "array",
-                            "items": {
-                                "$ref": "DOMCounter"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "prepareForLeakDetection",
-                    "description": "Prepares for leak detection by terminating workers, stopping spellcheckers,\ndropping non-essential internal caches, running garbage collections, etc."
+                    "name": "prepareForLeakDetection"
                 },
                 {
                     "name": "forciblyPurgeJavaScriptMemory",
@@ -13508,11 +13262,11 @@
                         "UserSetting",
                         "TPCDMetadata",
                         "TPCDDeprecationTrial",
-                        "TopLevelTPCDDeprecationTrial",
                         "TPCDHeuristics",
                         "EnterprisePolicy",
                         "StorageAccess",
                         "TopLevelStorageAccess",
+                        "CorsOptIn",
                         "Scheme"
                     ]
                 },
@@ -14030,8 +13784,7 @@
                         "RestrictProperties",
                         "UnsafeNone",
                         "SameOriginPlusCoep",
-                        "RestrictPropertiesPlusCoep",
-                        "NoopenerAllowPopups"
+                        "RestrictPropertiesPlusCoep"
                     ]
                 },
                 {
@@ -16939,8 +16692,7 @@
                 },
                 {
                     "name": "setShowWebVitals",
-                    "description": "Deprecated, no longer has any effect.",
-                    "deprecated": true,
+                    "description": "Request that backend shows an overlay with web vital metrics.",
                     "parameters": [
                         {
                             "name": "show",
@@ -17153,7 +16905,6 @@
                     "type": "string",
                     "enum": [
                         "accelerometer",
-                        "all-screens-capture",
                         "ambient-light-sensor",
                         "attribution-reporting",
                         "autoplay",
@@ -17187,12 +16938,10 @@
                         "clipboard-read",
                         "clipboard-write",
                         "compute-pressure",
-                        "controlled-frame",
                         "cross-origin-isolated",
                         "deferred-fetch",
                         "digital-credentials-get",
                         "direct-sockets",
-                        "direct-sockets-private",
                         "display-capture",
                         "document-domain",
                         "encrypted-media",
@@ -17212,13 +16961,11 @@
                         "keyboard-map",
                         "local-fonts",
                         "magnetometer",
-                        "media-playback-while-not-visible",
                         "microphone",
                         "midi",
                         "otp-credentials",
                         "payment",
                         "picture-in-picture",
-                        "popins",
                         "private-aggregation",
                         "private-state-token-issuance",
                         "private-state-token-redemption",
@@ -17239,7 +16986,6 @@
                         "usb",
                         "usb-unrestricted",
                         "vertical-scroll",
-                        "web-app-installation",
                         "web-printing",
                         "web-share",
                         "window-management",
@@ -17950,16 +17696,14 @@
                     "experimental": true,
                     "type": "string",
                     "enum": [
-                        "anchorClick",
                         "formSubmissionGet",
                         "formSubmissionPost",
                         "httpHeaderRefresh",
-                        "initialFrameNavigation",
+                        "scriptInitiated",
                         "metaTagRefresh",
-                        "other",
                         "pageBlockInterstitial",
                         "reload",
-                        "scriptInitiated"
+                        "anchorClick"
                     ]
                 },
                 {
@@ -18564,7 +18308,6 @@
                         "ContentWebUSB",
                         "ContentMediaSessionService",
                         "ContentScreenReader",
-                        "ContentDiscarded",
                         "EmbedderPopupBlockerTabHelper",
                         "EmbedderSafeBrowsingTriggeredPopupBlocker",
                         "EmbedderSafeBrowsingThreatDetails",
@@ -18580,8 +18323,7 @@
                         "EmbedderExtensionMessaging",
                         "EmbedderExtensionMessagingForOpenPort",
                         "EmbedderExtensionSentMessageToCachedFrame",
-                        "RequestedByWebViewClient",
-                        "PostMessageByWebViewClient"
+                        "RequestedByWebViewClient"
                     ]
                 },
                 {
@@ -20007,18 +19749,6 @@
                     ]
                 },
                 {
-                    "name": "frameSubtreeWillBeDetached",
-                    "description": "Fired before frame subtree is detached. Emitted before any frame of the\nsubtree is actually detached.",
-                    "experimental": true,
-                    "parameters": [
-                        {
-                            "name": "frameId",
-                            "description": "Id of the frame that is the root of the subtree that will be detached.",
-                            "$ref": "FrameId"
-                        }
-                    ]
-                },
-                {
                     "name": "frameNavigated",
                     "description": "Fired once navigation of the frame has completed. Frame is now associated with the new loader.",
                     "parameters": [
@@ -20323,16 +20053,6 @@
                             "name": "url",
                             "description": "Frame's new url.",
                             "type": "string"
-                        },
-                        {
-                            "name": "navigationType",
-                            "description": "Navigation type",
-                            "type": "string",
-                            "enum": [
-                                "fragment",
-                                "historyApi",
-                                "other"
-                            ]
                         }
                     ]
                 },
@@ -21877,81 +21597,6 @@
                     ]
                 },
                 {
-                    "id": "AttributionReportingAggregatableDebugReportingData",
-                    "experimental": true,
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "keyPiece",
-                            "$ref": "UnsignedInt128AsBase16"
-                        },
-                        {
-                            "name": "value",
-                            "description": "number instead of integer because not all uint32 can be represented by\nint",
-                            "type": "number"
-                        },
-                        {
-                            "name": "types",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "id": "AttributionReportingAggregatableDebugReportingConfig",
-                    "experimental": true,
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "budget",
-                            "description": "number instead of integer because not all uint32 can be represented by\nint, only present for source registrations",
-                            "optional": true,
-                            "type": "number"
-                        },
-                        {
-                            "name": "keyPiece",
-                            "$ref": "UnsignedInt128AsBase16"
-                        },
-                        {
-                            "name": "debugData",
-                            "type": "array",
-                            "items": {
-                                "$ref": "AttributionReportingAggregatableDebugReportingData"
-                            }
-                        },
-                        {
-                            "name": "aggregationCoordinatorOrigin",
-                            "optional": true,
-                            "type": "string"
-                        }
-                    ]
-                },
-                {
-                    "id": "AttributionScopesData",
-                    "experimental": true,
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "values",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        {
-                            "name": "limit",
-                            "description": "number instead of integer because not all uint32 can be represented by\nint",
-                            "type": "number"
-                        },
-                        {
-                            "name": "maxEventStates",
-                            "type": "number"
-                        }
-                    ]
-                },
-                {
                     "id": "AttributionReportingSourceRegistration",
                     "experimental": true,
                     "type": "object",
@@ -22026,19 +21671,6 @@
                         {
                             "name": "triggerDataMatching",
                             "$ref": "AttributionReportingTriggerDataMatching"
-                        },
-                        {
-                            "name": "destinationLimitPriority",
-                            "$ref": "SignedInt64AsBase10"
-                        },
-                        {
-                            "name": "aggregatableDebugReportingConfig",
-                            "$ref": "AttributionReportingAggregatableDebugReportingConfig"
-                        },
-                        {
-                            "name": "scopesData",
-                            "optional": true,
-                            "$ref": "AttributionScopesData"
                         }
                     ]
                 },
@@ -22059,9 +21691,7 @@
                         "destinationBothLimitsReached",
                         "reportingOriginsPerSiteLimitReached",
                         "exceedsMaxChannelCapacity",
-                        "exceedsMaxScopesChannelCapacity",
                         "exceedsMaxTriggerStateCardinality",
-                        "exceedsMaxEventStatesLimit",
                         "destinationPerDayReportingLimitReached"
                     ]
                 },
@@ -22237,17 +21867,6 @@
                             "name": "triggerContextId",
                             "optional": true,
                             "type": "string"
-                        },
-                        {
-                            "name": "aggregatableDebugReportingConfig",
-                            "$ref": "AttributionReportingAggregatableDebugReportingConfig"
-                        },
-                        {
-                            "name": "scopes",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
                         }
                     ]
                 },
@@ -25526,18 +25145,6 @@
                             "description": "Assertions returned by this credential will have the backup state (BS)\nflag set to this value. Defaults to the authenticator's\ndefaultBackupState value.",
                             "optional": true,
                             "type": "boolean"
-                        },
-                        {
-                            "name": "userName",
-                            "description": "The credential's user.name property. Equivalent to empty if not set.\nhttps://w3c.github.io/webauthn/#dom-publickeycredentialentity-name",
-                            "optional": true,
-                            "type": "string"
-                        },
-                        {
-                            "name": "userDisplayName",
-                            "description": "The credential's user.displayName property. Equivalent to empty if\nnot set.\nhttps://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-displayname",
-                            "optional": true,
-                            "type": "string"
                         }
                     ]
                 }
@@ -25747,34 +25354,6 @@
                 {
                     "name": "credentialAdded",
                     "description": "Triggered when a credential is added to an authenticator.",
-                    "parameters": [
-                        {
-                            "name": "authenticatorId",
-                            "$ref": "AuthenticatorId"
-                        },
-                        {
-                            "name": "credential",
-                            "$ref": "Credential"
-                        }
-                    ]
-                },
-                {
-                    "name": "credentialDeleted",
-                    "description": "Triggered when a credential is deleted, e.g. through\nPublicKeyCredential.signalUnknownCredential().",
-                    "parameters": [
-                        {
-                            "name": "authenticatorId",
-                            "$ref": "AuthenticatorId"
-                        },
-                        {
-                            "name": "credentialId",
-                            "type": "string"
-                        }
-                    ]
-                },
-                {
-                    "name": "credentialUpdated",
-                    "description": "Triggered when a credential is updated, e.g. through\nPublicKeyCredential.signalCurrentUserDetails().",
                     "parameters": [
                         {
                             "name": "authenticatorId",
@@ -26307,11 +25886,7 @@
                         "JavaScriptInterfaceAdded",
                         "JavaScriptInterfaceRemoved",
                         "AllPrerenderingCanceled",
-                        "WindowClosed",
-                        "SlowNetwork",
-                        "OtherPrerenderedPageActivated",
-                        "V8OptimizerDisabled",
-                        "PrerenderFailedDuringPrefetch"
+                        "WindowClosed"
                     ]
                 },
                 {
@@ -26338,6 +25913,7 @@
                         "PrefetchFailedMIMENotSupported",
                         "PrefetchFailedNetError",
                         "PrefetchFailedNon2XX",
+                        "PrefetchFailedPerPageLimitExceeded",
                         "PrefetchEvictedAfterCandidateRemoved",
                         "PrefetchEvictedForNewerPrefetch",
                         "PrefetchHeldback",
@@ -26921,155 +26497,6 @@
                             "name": "displayMode",
                             "optional": true,
                             "$ref": "DisplayMode"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "domain": "BluetoothEmulation",
-            "description": "This domain allows configuring virtual Bluetooth devices to test\nthe web-bluetooth API.",
-            "experimental": true,
-            "types": [
-                {
-                    "id": "CentralState",
-                    "description": "Indicates the various states of Central.",
-                    "type": "string",
-                    "enum": [
-                        "absent",
-                        "powered-off",
-                        "powered-on"
-                    ]
-                },
-                {
-                    "id": "ManufacturerData",
-                    "description": "Stores the manufacturer data",
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "key",
-                            "description": "Company identifier\nhttps://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml\nhttps://usb.org/developers",
-                            "type": "integer"
-                        },
-                        {
-                            "name": "data",
-                            "description": "Manufacturer-specific data (Encoded as a base64 string when passed over JSON)",
-                            "type": "string"
-                        }
-                    ]
-                },
-                {
-                    "id": "ScanRecord",
-                    "description": "Stores the byte data of the advertisement packet sent by a Bluetooth device.",
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "name",
-                            "optional": true,
-                            "type": "string"
-                        },
-                        {
-                            "name": "uuids",
-                            "optional": true,
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        {
-                            "name": "appearance",
-                            "description": "Stores the external appearance description of the device.",
-                            "optional": true,
-                            "type": "integer"
-                        },
-                        {
-                            "name": "txPower",
-                            "description": "Stores the transmission power of a broadcasting device.",
-                            "optional": true,
-                            "type": "integer"
-                        },
-                        {
-                            "name": "manufacturerData",
-                            "description": "Key is the company identifier and the value is an array of bytes of\nmanufacturer specific data.",
-                            "optional": true,
-                            "type": "array",
-                            "items": {
-                                "$ref": "ManufacturerData"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "id": "ScanEntry",
-                    "description": "Stores the advertisement packet information that is sent by a Bluetooth device.",
-                    "type": "object",
-                    "properties": [
-                        {
-                            "name": "deviceAddress",
-                            "type": "string"
-                        },
-                        {
-                            "name": "rssi",
-                            "type": "integer"
-                        },
-                        {
-                            "name": "scanRecord",
-                            "$ref": "ScanRecord"
-                        }
-                    ]
-                }
-            ],
-            "commands": [
-                {
-                    "name": "enable",
-                    "description": "Enable the BluetoothEmulation domain.",
-                    "parameters": [
-                        {
-                            "name": "state",
-                            "description": "State of the simulated central.",
-                            "$ref": "CentralState"
-                        }
-                    ]
-                },
-                {
-                    "name": "disable",
-                    "description": "Disable the BluetoothEmulation domain."
-                },
-                {
-                    "name": "simulatePreconnectedPeripheral",
-                    "description": "Simulates a peripheral with |address|, |name| and |knownServiceUuids|\nthat has already been connected to the system.",
-                    "parameters": [
-                        {
-                            "name": "address",
-                            "type": "string"
-                        },
-                        {
-                            "name": "name",
-                            "type": "string"
-                        },
-                        {
-                            "name": "manufacturerData",
-                            "type": "array",
-                            "items": {
-                                "$ref": "ManufacturerData"
-                            }
-                        },
-                        {
-                            "name": "knownServiceUuids",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "name": "simulateAdvertisement",
-                    "description": "Simulates an advertisement packet described in |entry| being received by\nthe central.",
-                    "parameters": [
-                        {
-                            "name": "entry",
-                            "$ref": "ScanEntry"
                         }
                     ]
                 }

@@ -78,6 +78,9 @@ defmodule ChromeRemoteInterface.PageSession do
     GenServer.call(pid, {:unsubscribe_all, subscriber_pid})
   end
 
+  @doc """
+  Set the message base for the page session.
+  """
   def set_context(pid, message_base) do
     GenServer.cast(pid, {:set_message_base, message_base})
   end
