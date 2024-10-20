@@ -39,12 +39,23 @@
               "type": "string"
             }
           ]
+        },
+        {
+          "name": "addPrivacySandboxEnrollmentOverride",
+          "description": "Allows a site to use privacy sandbox features that require enrollment\nwithout the site actually being enrolled. Only supported on page targets.",
+          "parameters": [
+            {
+              "name": "url",
+              "type": "string"
+            }
+          ]
         }
-      ]
+      ],
+      "events": []
     },
     {
       "domain": "DOM",
-      "description": "This domain exposes DOM read/write operations. Each DOM Node is represented with its mirror object\nthat has an `id`. This `id` can be used to get additional information on the Node, resolve it into\nthe JavaScript object wrapper, etc. It is important that client receives DOM events only for the\nnodes that are known to the client. Backend keeps track of the nodes that were sent to the client\nand never sends the same node twice. It is client's responsibility to collect information about\nthe nodes that were sent to the client.<p>Note that `iframe` owner elements will return\ncorresponding document elements as their child nodes.</p>",
+      "description": "This domain exposes DOM read/write operations. Each DOM Node is represented with its mirror object\nthat has an `id`. This `id` can be used to get additional information on the Node, resolve it into\nthe JavaScript object wrapper, etc. It is important that client receives DOM events only for the\nnodes that are known to the client. Backend keeps track of the nodes that were sent to the client\nand never sends the same node twice. It is client's responsibility to collect information about\nthe nodes that were sent to the client. Note that `iframe` owner elements will return\ncorresponding document elements as their child nodes.",
       "dependencies": [
         "Runtime"
       ],
@@ -89,8 +100,13 @@
             "first-letter",
             "before",
             "after",
+            "marker",
             "backdrop",
             "selection",
+            "target-text",
+            "spelling-error",
+            "grammar-error",
+            "highlight",
             "first-line-inherited",
             "scrollbar",
             "scrollbar-thumb",
@@ -99,7 +115,12 @@
             "scrollbar-track-piece",
             "scrollbar-corner",
             "resizer",
-            "input-list-button"
+            "input-list-button",
+            "view-transition",
+            "view-transition-group",
+            "view-transition-image-pair",
+            "view-transition-old",
+            "view-transition-new"
           ]
         },
         {
@@ -110,6 +131,36 @@
             "user-agent",
             "open",
             "closed"
+          ]
+        },
+        {
+          "id": "CompatibilityMode",
+          "description": "Document compatibility mode.",
+          "type": "string",
+          "enum": [
+            "QuirksMode",
+            "LimitedQuirksMode",
+            "NoQuirksMode"
+          ]
+        },
+        {
+          "id": "PhysicalAxes",
+          "description": "ContainerSelector physical axes",
+          "type": "string",
+          "enum": [
+            "Horizontal",
+            "Vertical",
+            "Both"
+          ]
+        },
+        {
+          "id": "LogicalAxes",
+          "description": "ContainerSelector logical axes",
+          "type": "string",
+          "enum": [
+            "Inline",
+            "Block",
+            "Both"
           ]
         },
         {
@@ -232,6 +283,12 @@
               "$ref": "PseudoType"
             },
             {
+              "name": "pseudoIdentifier",
+              "description": "Pseudo element identifier for this node. Only present if there is a\nvalid pseudoType.",
+              "optional": true,
+              "type": "string"
+            },
+            {
               "name": "shadowRootType",
               "description": "Shadow root type.",
               "optional": true,
@@ -275,7 +332,8 @@
             },
             {
               "name": "importedDocument",
-              "description": "Import document for the HTMLImport links.",
+              "description": "Deprecated, as the HTML Imports API has been removed (crbug.com/937746).\nThis property used to return the imported document for the HTMLImport links.\nThe property is always undefined now.",
+              "deprecated": true,
               "optional": true,
               "$ref": "Node"
             },
@@ -293,6 +351,16 @@
               "description": "Whether the node is SVG.",
               "optional": true,
               "type": "boolean"
+            },
+            {
+              "name": "compatibilityMode",
+              "optional": true,
+              "$ref": "CompatibilityMode"
+            },
+            {
+              "name": "assignedSlot",
+              "optional": true,
+              "$ref": "BackendNode"
             }
           ]
         },
@@ -429,6 +497,22 @@
               "type": "number"
             }
           ]
+        },
+        {
+          "id": "CSSComputedStyleProperty",
+          "type": "object",
+          "properties": [
+            {
+              "name": "name",
+              "description": "Computed style property name.",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "description": "Computed style property value.",
+              "type": "string"
+            }
+          ]
         }
       ],
       "commands": [
@@ -481,7 +565,20 @@
         },
         {
           "name": "enable",
-          "description": "Enables DOM agent for the given page."
+          "description": "Enables DOM agent for the given page.",
+          "parameters": [
+            {
+              "name": "includeWhitespace",
+              "description": "Whether to include whitespaces in the children array of returned Nodes.",
+              "experimental": true,
+              "optional": true,
+              "type": "string",
+              "enum": [
+                "none",
+                "all"
+              ]
+            }
+          ]
         },
         {
           "name": "focus",
@@ -561,7 +658,7 @@
         },
         {
           "name": "getDocument",
-          "description": "Returns the root DOM node (and optionally the subtree) to the caller.",
+          "description": "Returns the root DOM node (and optionally the subtree) to the caller.\nImplicitly enables the DOM domain events for the current target.",
           "parameters": [
             {
               "name": "depth",
@@ -585,30 +682,48 @@
           ]
         },
         {
-          "name": "getFlattenedDocument",
-          "description": "Returns the root DOM node (and optionally the subtree) to the caller.",
+          "name": "getNodeForLocation",
+          "description": "Returns node id at given location. Depending on whether DOM domain is enabled, nodeId is\neither returned or not.",
           "parameters": [
             {
-              "name": "depth",
-              "description": "The maximum depth at which children should be retrieved, defaults to 1. Use -1 for the\nentire subtree or provide an integer larger than 0.",
-              "optional": true,
+              "name": "x",
+              "description": "X coordinate.",
               "type": "integer"
             },
             {
-              "name": "pierce",
-              "description": "Whether or not iframes and shadow roots should be traversed when returning the subtree\n(default is false).",
+              "name": "y",
+              "description": "Y coordinate.",
+              "type": "integer"
+            },
+            {
+              "name": "includeUserAgentShadowDOM",
+              "description": "False to skip to the nearest non-UA shadow root ancestor (default: false).",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "ignorePointerEventsNone",
+              "description": "Whether to ignore pointer-events: none on elements and hit test them.",
               "optional": true,
               "type": "boolean"
             }
           ],
           "returns": [
             {
-              "name": "nodes",
+              "name": "backendNodeId",
               "description": "Resulting node.",
-              "type": "array",
-              "items": {
-                "$ref": "Node"
-              }
+              "$ref": "BackendNodeId"
+            },
+            {
+              "name": "frameId",
+              "description": "Frame this node belongs to.",
+              "$ref": "Page.FrameId"
+            },
+            {
+              "name": "nodeId",
+              "description": "Id of the node at given coordinates, only when enabled and requested document.",
+              "optional": true,
+              "$ref": "NodeId"
             }
           ]
         },
@@ -1053,7 +1168,7 @@
             },
             {
               "name": "previousNodeId",
-              "description": "If of the previous siblint.",
+              "description": "Id of the previous sibling.",
               "$ref": "NodeId"
             },
             {
@@ -1109,7 +1224,6 @@
       "description": "DOM debugging allows setting breakpoints on particular DOM operations and events. JavaScript\nexecution will stop on these operations as if there was a regular breakpoint set.",
       "dependencies": [
         "DOM",
-        "Debugger",
         "Runtime"
       ],
       "types": [
@@ -1341,6 +1455,60 @@
               "type": "integer"
             }
           ]
+        },
+        {
+          "id": "DisplayFeature",
+          "type": "object",
+          "properties": [
+            {
+              "name": "orientation",
+              "description": "Orientation of a display feature in relation to screen",
+              "type": "string",
+              "enum": [
+                "vertical",
+                "horizontal"
+              ]
+            },
+            {
+              "name": "offset",
+              "description": "The offset from the screen origin in either the x (for vertical\norientation) or y (for horizontal orientation) direction.",
+              "type": "integer"
+            },
+            {
+              "name": "maskLength",
+              "description": "A display feature may mask content such that it is not physically\ndisplayed - this length along with the offset describes this area.\nA display feature that only splits content will have a 0 mask_length.",
+              "type": "integer"
+            }
+          ]
+        },
+        {
+          "id": "DevicePosture",
+          "type": "object",
+          "properties": [
+            {
+              "name": "type",
+              "description": "Current posture of the device",
+              "type": "string",
+              "enum": [
+                "continuous",
+                "folded"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "MediaFeature",
+          "type": "object",
+          "properties": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "string"
+            }
+          ]
         }
       ],
       "commands": [
@@ -1357,11 +1525,11 @@
         },
         {
           "name": "clearDeviceMetricsOverride",
-          "description": "Clears the overriden device metrics."
+          "description": "Clears the overridden device metrics."
         },
         {
           "name": "clearGeolocationOverride",
-          "description": "Clears the overriden Geolocation Position and Error."
+          "description": "Clears the overridden Geolocation Position and Error."
         },
         {
           "name": "setDefaultBackgroundColorOverride",
@@ -1453,17 +1621,41 @@
               "experimental": true,
               "optional": true,
               "$ref": "Page.Viewport"
+            },
+            {
+              "name": "displayFeature",
+              "description": "If set, the display feature of a multi-segment screen. If not set, multi-segment support\nis turned-off.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "DisplayFeature"
+            },
+            {
+              "name": "devicePosture",
+              "description": "If set, the posture of a foldable device. If not set the posture is set\nto continuous.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "DevicePosture"
             }
           ]
         },
         {
           "name": "setEmulatedMedia",
-          "description": "Emulates the given media for CSS media queries.",
+          "description": "Emulates the given media type or media feature for CSS media queries.",
           "parameters": [
             {
               "name": "media",
               "description": "Media type to emulate. Empty string disables the override.",
+              "optional": true,
               "type": "string"
+            },
+            {
+              "name": "features",
+              "description": "Media features to emulate.",
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "MediaFeature"
+              }
             }
           ]
         },
@@ -1530,7 +1722,7 @@
             },
             {
               "name": "acceptLanguage",
-              "description": "Browser langugage to emulate.",
+              "description": "Browser language to emulate.",
               "optional": true,
               "type": "string"
             },
@@ -1539,6 +1731,13 @@
               "description": "The platform navigator.platform should return.",
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "userAgentMetadata",
+              "description": "To be sent in Sec-CH-UA-* headers and returned in navigator.userAgentData",
+              "experimental": true,
+              "optional": true,
+              "$ref": "UserAgentMetadata"
             }
           ]
         }
@@ -1551,7 +1750,7 @@
       "types": [
         {
           "id": "StreamHandle",
-          "description": "This is either obtained from another method or specifed as `blob:&lt;uuid&gt;` where\n`&lt;uuid&gt` is an UUID of a Blob.",
+          "description": "This is either obtained from another method or specified as `blob:<uuid>` where\n`<uuid>` is an UUID of a Blob.",
           "type": "string"
         }
       ],
@@ -1603,7 +1802,7 @@
             },
             {
               "name": "eof",
-              "description": "Set if the end-of-file condition occured while reading.",
+              "description": "Set if the end-of-file condition occurred while reading.",
               "type": "boolean"
             }
           ]
@@ -1670,11 +1869,49 @@
               "type": "number"
             },
             {
+              "name": "tangentialPressure",
+              "description": "The normalized tangential pressure, which has a range of [-1,1] (default: 0).",
+              "experimental": true,
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tiltX",
+              "description": "The plane angle between the Y-Z plane and the plane containing both the stylus axis and the Y axis, in degrees of the range [-90,90], a positive tiltX is to the right (default: 0)",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tiltY",
+              "description": "The plane angle between the X-Z plane and the plane containing both the stylus axis and the X axis, in degrees of the range [-90,90], a positive tiltY is towards the user (default: 0).",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "twist",
+              "description": "The clockwise rotation of a pen stylus around its own major axis, in degrees in the range [0,359] (default: 0).",
+              "experimental": true,
+              "optional": true,
+              "type": "integer"
+            },
+            {
               "name": "id",
               "description": "Identifier used to track touch sources between events, must be unique within an event.",
               "optional": true,
               "type": "number"
             }
+          ]
+        },
+        {
+          "id": "MouseButton",
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "middle",
+            "right",
+            "back",
+            "forward"
           ]
         },
         {
@@ -1776,6 +2013,16 @@
               "description": "Whether the event was from the left or right side of the keyboard. 1=Left, 2=Right (default:\n0).",
               "optional": true,
               "type": "integer"
+            },
+            {
+              "name": "commands",
+              "description": "Editing commands to send with the key event (e.g., 'selectAll') (default: []).\nThese are related to but not equal the command names used in `document.execCommand` and NSStandardKeyBindingResponding.\nSee https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/editing/commands/editor_command_names.h for valid command names.",
+              "experimental": true,
+              "optional": true,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           ]
         },
@@ -1820,15 +2067,7 @@
               "name": "button",
               "description": "Mouse button (default: \"none\").",
               "optional": true,
-              "type": "string",
-              "enum": [
-                "none",
-                "left",
-                "middle",
-                "right",
-                "back",
-                "forward"
-              ]
+              "$ref": "MouseButton"
             },
             {
               "name": "buttons",
@@ -1839,6 +2078,39 @@
             {
               "name": "clickCount",
               "description": "Number of times the mouse button was clicked (default: 0).",
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "force",
+              "description": "The normalized pressure, which has a range of [0,1] (default: 0).",
+              "experimental": true,
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tangentialPressure",
+              "description": "The normalized tangential pressure, which has a range of [-1,1] (default: 0).",
+              "experimental": true,
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tiltX",
+              "description": "The plane angle between the Y-Z plane and the plane containing both the stylus axis and the Y axis, in degrees of the range [-90,90], a positive tiltX is to the right (default: 0).",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tiltY",
+              "description": "The plane angle between the X-Z plane and the plane containing both the stylus axis and the X axis, in degrees of the range [-90,90], a positive tiltY is towards the user (default: 0).",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "twist",
+              "description": "The clockwise rotation of a pen stylus around its own major axis, in degrees in the range [0,359] (default: 0).",
+              "experimental": true,
               "optional": true,
               "type": "integer"
             },
@@ -1904,6 +2176,10 @@
           ]
         },
         {
+          "name": "cancelDragging",
+          "description": "Cancels any active dragging in the page."
+        },
+        {
           "name": "setIgnoreInputEvents",
           "description": "Ignores input events (useful while auditing page).",
           "parameters": [
@@ -1914,7 +2190,8 @@
             }
           ]
         }
-      ]
+      ],
+      "events": []
     },
     {
       "domain": "Log",
@@ -1964,6 +2241,14 @@
               "name": "text",
               "description": "Logged text.",
               "type": "string"
+            },
+            {
+              "name": "category",
+              "optional": true,
+              "type": "string",
+              "enum": [
+                "cors"
+              ]
             },
             {
               "name": "timestamp",
@@ -2107,12 +2392,14 @@
             "TextTrack",
             "XHR",
             "Fetch",
+            "Prefetch",
             "EventSource",
             "WebSocket",
             "Manifest",
             "SignedExchange",
             "Ping",
             "CSPViolationReport",
+            "Preflight",
             "Other"
           ]
         },
@@ -2190,7 +2477,6 @@
           "enum": [
             "Strict",
             "Lax",
-            "Extended",
             "None"
           ]
         },
@@ -2257,6 +2543,18 @@
               "type": "number"
             },
             {
+              "name": "workerFetchStart",
+              "description": "Started fetch event.",
+              "experimental": true,
+              "type": "number"
+            },
+            {
+              "name": "workerRespondWithSettled",
+              "description": "Settled fetch event respondWith promise.",
+              "experimental": true,
+              "type": "number"
+            },
+            {
               "name": "sendStart",
               "description": "Started sending request.",
               "type": "number"
@@ -2279,6 +2577,12 @@
               "type": "number"
             },
             {
+              "name": "receiveHeadersStart",
+              "description": "Started receiving response headers.",
+              "experimental": true,
+              "type": "number"
+            },
+            {
               "name": "receiveHeadersEnd",
               "description": "Finished receiving response headers.",
               "type": "number"
@@ -2295,6 +2599,18 @@
             "Medium",
             "High",
             "VeryHigh"
+          ]
+        },
+        {
+          "id": "PostDataEntry",
+          "description": "Post data entry for HTTP request",
+          "type": "object",
+          "properties": [
+            {
+              "name": "bytes",
+              "optional": true,
+              "type": "string"
+            }
           ]
         },
         {
@@ -2336,6 +2652,16 @@
               "type": "boolean"
             },
             {
+              "name": "postDataEntries",
+              "description": "Request body elements. This will be converted from base64 to binary",
+              "experimental": true,
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "PostDataEntry"
+              }
+            },
+            {
               "name": "mixedContentType",
               "description": "The mixed content type of the request.",
               "optional": true,
@@ -2364,6 +2690,20 @@
             {
               "name": "isLinkPreload",
               "description": "Whether is loaded via link preload.",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "trustTokenParams",
+              "description": "Set for requests when the TrustToken API is used. Contains the parameters\npassed by the developer (e.g. via \"fetch\") as understood by the backend.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "TrustTokenParams"
+            },
+            {
+              "name": "isSameSite",
+              "description": "True if this resource request is considered to be the 'same site' as the\nrequest correspondinfg to the main frame.",
+              "experimental": true,
               "optional": true,
               "type": "boolean"
             }
@@ -2396,8 +2736,8 @@
             },
             {
               "name": "timestamp",
-              "description": "Issuance date.",
-              "$ref": "TimeSinceEpoch"
+              "description": "Issuance date. Unlike TimeSinceEpoch, this contains the number of\nmilliseconds since January 1, 1970, UTC, not the number of seconds.",
+              "type": "number"
             },
             {
               "name": "hashAlgorithm",
@@ -2493,6 +2833,17 @@
               "name": "certificateTransparencyCompliance",
               "description": "Whether the request complied with Certificate Transparency policy",
               "$ref": "CertificateTransparencyCompliance"
+            },
+            {
+              "name": "serverSignatureAlgorithm",
+              "description": "The signature algorithm used by the server in the TLS server signature,\nrepresented as a TLS SignatureScheme code point. Omitted if not\napplicable or not known.",
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "encryptedClientHello",
+              "description": "Whether the connection used Encrypted ClientHello",
+              "type": "boolean"
             }
           ]
         },
@@ -2518,7 +2869,77 @@
             "inspector",
             "subresource-filter",
             "content-type",
-            "collapsed-by-client"
+            "coep-frame-resource-needs-coep-header",
+            "coop-sandboxed-iframe-cannot-navigate-to-coop-page",
+            "corp-not-same-origin",
+            "corp-not-same-origin-after-defaulted-to-same-origin-by-coep",
+            "corp-not-same-site"
+          ]
+        },
+        {
+          "id": "CorsError",
+          "description": "The reason why request was blocked.",
+          "type": "string",
+          "enum": [
+            "DisallowedByMode",
+            "InvalidResponse",
+            "WildcardOriginNotAllowed",
+            "MissingAllowOriginHeader",
+            "MultipleAllowOriginValues",
+            "InvalidAllowOriginValue",
+            "AllowOriginMismatch",
+            "InvalidAllowCredentials",
+            "CorsDisabledScheme",
+            "PreflightInvalidStatus",
+            "PreflightDisallowedRedirect",
+            "PreflightWildcardOriginNotAllowed",
+            "PreflightMissingAllowOriginHeader",
+            "PreflightMultipleAllowOriginValues",
+            "PreflightInvalidAllowOriginValue",
+            "PreflightAllowOriginMismatch",
+            "PreflightInvalidAllowCredentials",
+            "PreflightMissingAllowExternal",
+            "PreflightInvalidAllowExternal",
+            "PreflightMissingAllowPrivateNetwork",
+            "PreflightInvalidAllowPrivateNetwork",
+            "InvalidAllowMethodsPreflightResponse",
+            "InvalidAllowHeadersPreflightResponse",
+            "MethodDisallowedByPreflightResponse",
+            "HeaderDisallowedByPreflightResponse",
+            "RedirectContainsCredentials",
+            "InsecurePrivateNetwork",
+            "InvalidPrivateNetworkAccess",
+            "UnexpectedPrivateNetworkAccess",
+            "NoCorsRedirectModeNotFollow",
+            "PreflightMissingPrivateNetworkAccessId",
+            "PreflightMissingPrivateNetworkAccessName",
+            "PrivateNetworkAccessPermissionUnavailable",
+            "PrivateNetworkAccessPermissionDenied"
+          ]
+        },
+        {
+          "id": "CorsErrorStatus",
+          "type": "object",
+          "properties": [
+            {
+              "name": "corsError",
+              "$ref": "CorsError"
+            },
+            {
+              "name": "failedParameter",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "ServiceWorkerResponseSource",
+          "description": "Source of serviceworker response.",
+          "type": "string",
+          "enum": [
+            "cache-storage",
+            "http-cache",
+            "fallback-code",
+            "network"
           ]
         },
         {
@@ -2548,13 +2969,19 @@
             },
             {
               "name": "headersText",
-              "description": "HTTP response headers text.",
+              "description": "HTTP response headers text. This has been replaced by the headers in Network.responseReceivedExtraInfo.",
+              "deprecated": true,
               "optional": true,
               "type": "string"
             },
             {
               "name": "mimeType",
               "description": "Resource mimeType as determined by the browser.",
+              "type": "string"
+            },
+            {
+              "name": "charset",
+              "description": "Resource charset as determined by the browser (if applicable).",
               "type": "string"
             },
             {
@@ -2565,7 +2992,8 @@
             },
             {
               "name": "requestHeadersText",
-              "description": "HTTP request headers text.",
+              "description": "HTTP request headers text. This has been replaced by the headers in Network.requestWillBeSentExtraInfo.",
+              "deprecated": true,
               "optional": true,
               "type": "string"
             },
@@ -2610,6 +3038,13 @@
               "type": "boolean"
             },
             {
+              "name": "serviceWorkerRouterInfo",
+              "description": "Infomation about how Service Worker Static Router was used.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "ServiceWorkerRouterInfo"
+            },
+            {
               "name": "encodedDataLength",
               "description": "Total number of bytes received for this request so far.",
               "type": "number"
@@ -2621,10 +3056,35 @@
               "$ref": "ResourceTiming"
             },
             {
+              "name": "serviceWorkerResponseSource",
+              "description": "Response source of response from ServiceWorker.",
+              "optional": true,
+              "$ref": "ServiceWorkerResponseSource"
+            },
+            {
+              "name": "responseTime",
+              "description": "The time at which the returned response was generated.",
+              "optional": true,
+              "$ref": "TimeSinceEpoch"
+            },
+            {
+              "name": "cacheStorageCacheName",
+              "description": "Cache Storage Cache Name.",
+              "optional": true,
+              "type": "string"
+            },
+            {
               "name": "protocol",
               "description": "Protocol used to fetch this request.",
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "alternateProtocolUsage",
+              "description": "The reason why Chrome uses a specific transport protocol for HTTP semantics.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "AlternateProtocolUsage"
             },
             {
               "name": "securityState",
@@ -2755,6 +3215,7 @@
                 "script",
                 "preload",
                 "SignedExchange",
+                "preflight",
                 "other"
               ]
             },
@@ -2775,6 +3236,18 @@
               "description": "Initiator line number, set for Parser type or for Script type (when script is importing\nmodule) (0-based).",
               "optional": true,
               "type": "number"
+            },
+            {
+              "name": "columnNumber",
+              "description": "Initiator column number, set for Parser type or for Script type (when script is importing\nmodule) (0-based).",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "requestId",
+              "description": "Set if another request triggered this request (e.g. preflight).",
+              "optional": true,
+              "$ref": "RequestId"
             }
           ]
         },
@@ -2833,6 +3306,45 @@
               "description": "Cookie SameSite type.",
               "optional": true,
               "$ref": "CookieSameSite"
+            },
+            {
+              "name": "priority",
+              "description": "Cookie Priority",
+              "experimental": true,
+              "$ref": "CookiePriority"
+            },
+            {
+              "name": "sameParty",
+              "description": "True if cookie is SameParty.",
+              "experimental": true,
+              "deprecated": true,
+              "type": "boolean"
+            },
+            {
+              "name": "sourceScheme",
+              "description": "Cookie source scheme type.",
+              "experimental": true,
+              "$ref": "CookieSourceScheme"
+            },
+            {
+              "name": "sourcePort",
+              "description": "Cookie source port. Valid values are {-1, [1, 65535]}, -1 indicates an unspecified port.\nAn unspecified port value allows protocol clients to emulate legacy cookie scope for the port.\nThis is a temporary ability and it will be removed in the future.",
+              "experimental": true,
+              "type": "integer"
+            },
+            {
+              "name": "partitionKey",
+              "description": "Cookie partition key. The site of the top-level URL the browser was visiting at the start\nof the request to the endpoint that set the cookie.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "partitionKeyOpaque",
+              "description": "True if cookie partition key is opaque.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
             }
           ]
         },
@@ -2853,7 +3365,7 @@
             },
             {
               "name": "url",
-              "description": "The request-URI to associate with the setting of the cookie. This value can affect the\ndefault domain and path values of the created cookie.",
+              "description": "The request-URI to associate with the setting of the cookie. This value can affect the\ndefault domain, path, source port, and source scheme values of the created cookie.",
               "optional": true,
               "type": "string"
             },
@@ -2892,6 +3404,41 @@
               "description": "Cookie expiration date, session cookie if not set",
               "optional": true,
               "$ref": "TimeSinceEpoch"
+            },
+            {
+              "name": "priority",
+              "description": "Cookie Priority.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "CookiePriority"
+            },
+            {
+              "name": "sameParty",
+              "description": "True if cookie is SameParty.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "sourceScheme",
+              "description": "Cookie source scheme type.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "CookieSourceScheme"
+            },
+            {
+              "name": "sourcePort",
+              "description": "Cookie source port. Valid values are {-1, [1, 65535]}, -1 indicates an unspecified port.\nAn unspecified port value allows protocol clients to emulate legacy cookie scope for the port.\nThis is a temporary ability and it will be removed in the future.",
+              "experimental": true,
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "partitionKey",
+              "description": "Cookie partition key. The site of the top-level URL the browser was visiting at the start\nof the request to the endpoint that set the cookie.\nIf not set, the cookie will be set as not partitioned.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
             }
           ]
         }
@@ -2997,26 +3544,12 @@
           ]
         },
         {
-          "name": "getAllCookies",
-          "description": "Returns all browser cookies. Depending on the backend support, will return detailed cookie\ninformation in the `cookies` field.",
-          "returns": [
-            {
-              "name": "cookies",
-              "description": "Array of cookie objects.",
-              "type": "array",
-              "items": {
-                "$ref": "Cookie"
-              }
-            }
-          ]
-        },
-        {
           "name": "getCookies",
           "description": "Returns all browser cookies for the current URL. Depending on the backend support, will return\ndetailed cookie information in the `cookies` field.",
           "parameters": [
             {
               "name": "urls",
-              "description": "The list of URLs for which applicable cookies will be fetched",
+              "description": "The list of URLs for which applicable cookies will be fetched.\nIf not specified, it's assumed to be set to the list containing\nthe URLs of the page and all of its subframes.",
               "optional": true,
               "type": "array",
               "items": {
@@ -3103,7 +3636,7 @@
             },
             {
               "name": "url",
-              "description": "The request-URI to associate with the setting of the cookie. This value can affect the\ndefault domain and path values of the created cookie.",
+              "description": "The request-URI to associate with the setting of the cookie. This value can affect the\ndefault domain, path, source port, and source scheme values of the created cookie.",
               "optional": true,
               "type": "string"
             },
@@ -3142,12 +3675,48 @@
               "description": "Cookie expiration date, session cookie if not set",
               "optional": true,
               "$ref": "TimeSinceEpoch"
+            },
+            {
+              "name": "priority",
+              "description": "Cookie Priority type.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "CookiePriority"
+            },
+            {
+              "name": "sameParty",
+              "description": "True if cookie is SameParty.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "sourceScheme",
+              "description": "Cookie source scheme type.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "CookieSourceScheme"
+            },
+            {
+              "name": "sourcePort",
+              "description": "Cookie source port. Valid values are {-1, [1, 65535]}, -1 indicates an unspecified port.\nAn unspecified port value allows protocol clients to emulate legacy cookie scope for the port.\nThis is a temporary ability and it will be removed in the future.",
+              "experimental": true,
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "partitionKey",
+              "description": "Cookie partition key. The site of the top-level URL the browser was visiting at the start\nof the request to the endpoint that set the cookie.\nIf not set, the cookie will be set as not partitioned.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
             }
           ],
           "returns": [
             {
               "name": "success",
-              "description": "True if successfully set cookie.",
+              "description": "Always set to true. If an error occurs, the response indicates protocol error.",
+              "deprecated": true,
               "type": "boolean"
             }
           ]
@@ -3189,7 +3758,7 @@
             },
             {
               "name": "acceptLanguage",
-              "description": "Browser langugage to emulate.",
+              "description": "Browser language to emulate.",
               "optional": true,
               "type": "string"
             },
@@ -3198,6 +3767,13 @@
               "description": "The platform navigator.platform should return.",
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "userAgentMetadata",
+              "description": "To be sent in Sec-CH-UA-* headers and returned in navigator.userAgentData",
+              "experimental": true,
+              "optional": true,
+              "$ref": "Emulation.UserAgentMetadata"
             }
           ]
         }
@@ -3226,6 +3802,13 @@
               "name": "encodedDataLength",
               "description": "Actual bytes received (might be less than dataLength for compressed encodings).",
               "type": "integer"
+            },
+            {
+              "name": "data",
+              "description": "Data that was received. (Encoded as a base64 string when passed over JSON)",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
             }
           ]
         },
@@ -3295,6 +3878,12 @@
               "description": "The reason why loading was blocked, if any.",
               "optional": true,
               "$ref": "BlockedReason"
+            },
+            {
+              "name": "corsErrorStatus",
+              "description": "The reason why loading was blocked by CORS, if any.",
+              "optional": true,
+              "$ref": "CorsErrorStatus"
             }
           ]
         },
@@ -3316,12 +3905,6 @@
               "name": "encodedDataLength",
               "description": "Total number of bytes received for this request.",
               "type": "number"
-            },
-            {
-              "name": "shouldReportCorbBlocking",
-              "description": "Set when 1) response was blocked by Cross-Origin Read Blocking and also\n2) this needs to be reported to the DevTools console.",
-              "optional": true,
-              "type": "boolean"
             }
           ]
         },
@@ -3374,6 +3957,12 @@
               "name": "initiator",
               "description": "Request initiator.",
               "$ref": "Initiator"
+            },
+            {
+              "name": "redirectHasExtraInfo",
+              "description": "In the case that redirectResponse is populated, this flag indicates whether\nrequestWillBeSentExtraInfo and responseReceivedExtraInfo events will be or were emitted\nfor the request which was just redirected.",
+              "experimental": true,
+              "type": "boolean"
             },
             {
               "name": "redirectResponse",
@@ -3429,6 +4018,12 @@
               "name": "response",
               "description": "Response data.",
               "$ref": "Response"
+            },
+            {
+              "name": "hasExtraInfo",
+              "description": "Indicates whether requestWillBeSentExtraInfo and responseReceivedExtraInfo events will be\nor were emitted for this request.",
+              "experimental": true,
+              "type": "boolean"
             },
             {
               "name": "frameId",
@@ -3585,6 +4180,65 @@
               "$ref": "WebSocketRequest"
             }
           ]
+        },
+        {
+          "name": "webTransportCreated",
+          "description": "Fired upon WebTransport creation.",
+          "parameters": [
+            {
+              "name": "transportId",
+              "description": "WebTransport identifier.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "url",
+              "description": "WebTransport request URL.",
+              "type": "string"
+            },
+            {
+              "name": "timestamp",
+              "description": "Timestamp.",
+              "$ref": "MonotonicTime"
+            },
+            {
+              "name": "initiator",
+              "description": "Request initiator.",
+              "optional": true,
+              "$ref": "Initiator"
+            }
+          ]
+        },
+        {
+          "name": "webTransportConnectionEstablished",
+          "description": "Fired when WebTransport handshake is finished.",
+          "parameters": [
+            {
+              "name": "transportId",
+              "description": "WebTransport identifier.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "timestamp",
+              "description": "Timestamp.",
+              "$ref": "MonotonicTime"
+            }
+          ]
+        },
+        {
+          "name": "webTransportClosed",
+          "description": "Fired when WebTransport is disposed.",
+          "parameters": [
+            {
+              "name": "transportId",
+              "description": "WebTransport identifier.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "timestamp",
+              "description": "Timestamp.",
+              "$ref": "MonotonicTime"
+            }
+          ]
         }
       ]
     },
@@ -3612,13 +4266,13 @@
             {
               "name": "id",
               "description": "Frame unique identifier.",
-              "type": "string"
+              "$ref": "FrameId"
             },
             {
               "name": "parentId",
               "description": "Parent frame identifier.",
               "optional": true,
-              "type": "string"
+              "$ref": "FrameId"
             },
             {
               "name": "loaderId",
@@ -3644,6 +4298,12 @@
               "type": "string"
             },
             {
+              "name": "domainAndRegistry",
+              "description": "Frame document's registered domain, taking the public suffixes list into account.\nExtracted from the Frame's url.\nExample URLs: http://www.google.com/file.html -> \"google.com\"\n              http://a.b.co.uk/file.html      -> \"b.co.uk\"",
+              "experimental": true,
+              "type": "string"
+            },
+            {
               "name": "securityOrigin",
               "description": "Frame document's security origin.",
               "type": "string"
@@ -3659,6 +4319,34 @@
               "experimental": true,
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "adFrameStatus",
+              "description": "Indicates whether this frame was tagged as an ad and why.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "AdFrameStatus"
+            },
+            {
+              "name": "secureContextType",
+              "description": "Indicates whether the main document is a secure context and explains why that is the case.",
+              "experimental": true,
+              "$ref": "SecureContextType"
+            },
+            {
+              "name": "crossOriginIsolatedContextType",
+              "description": "Indicates whether this is a cross origin isolated context.",
+              "experimental": true,
+              "$ref": "CrossOriginIsolatedContextType"
+            },
+            {
+              "name": "gatedAPIFeatures",
+              "description": "Indicated which gated APIs / features are available.",
+              "experimental": true,
+              "type": "array",
+              "items": {
+                "$ref": "GatedAPIFeatures"
+              }
             }
           ]
         },
@@ -3901,6 +4589,20 @@
               "experimental": true,
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "includeCommandLineAPI",
+              "description": "Specifies whether command line API should be available to the script, defaults\nto false.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "runImmediately",
+              "description": "If true, runs the script immediately on existing execution contexts or worlds.\nDefault: false.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
             }
           ],
           "returns": [
@@ -3926,7 +4628,8 @@
               "type": "string",
               "enum": [
                 "jpeg",
-                "png"
+                "png",
+                "webp"
               ]
             },
             {
@@ -3947,12 +4650,26 @@
               "experimental": true,
               "optional": true,
               "type": "boolean"
+            },
+            {
+              "name": "captureBeyondViewport",
+              "description": "Capture the screenshot beyond the viewport. Defaults to false.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "optimizeForSpeed",
+              "description": "Optimize image encoding for speed, not for resulting size (defaults to false)",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
             }
           ],
           "returns": [
             {
               "name": "data",
-              "description": "Base64-encoded image data.",
+              "description": "Base64-encoded image data. (Encoded as a base64 string when passed over JSON)",
               "type": "string"
             }
           ]
@@ -4015,6 +4732,13 @@
               "description": "Manifest content.",
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "parsed",
+              "description": "Parsed manifest properties",
+              "experimental": true,
+              "optional": true,
+              "$ref": "AppManifestParsedProperties"
             }
           ]
         },
@@ -4035,17 +4759,35 @@
           "returns": [
             {
               "name": "layoutViewport",
-              "description": "Metrics relating to the layout viewport.",
+              "description": "Deprecated metrics relating to the layout viewport. Is in device pixels. Use `cssLayoutViewport` instead.",
+              "deprecated": true,
               "$ref": "LayoutViewport"
             },
             {
               "name": "visualViewport",
-              "description": "Metrics relating to the visual viewport.",
+              "description": "Deprecated metrics relating to the visual viewport. Is in device pixels. Use `cssVisualViewport` instead.",
+              "deprecated": true,
               "$ref": "VisualViewport"
             },
             {
               "name": "contentSize",
-              "description": "Size of scrollable area.",
+              "description": "Deprecated size of scrollable area. Is in DP. Use `cssContentSize` instead.",
+              "deprecated": true,
+              "$ref": "DOM.Rect"
+            },
+            {
+              "name": "cssLayoutViewport",
+              "description": "Metrics relating to the layout viewport in CSS pixels.",
+              "$ref": "LayoutViewport"
+            },
+            {
+              "name": "cssVisualViewport",
+              "description": "Metrics relating to the visual viewport in CSS pixels.",
+              "$ref": "VisualViewport"
+            },
+            {
+              "name": "cssContentSize",
+              "description": "Size of scrollable area in CSS pixels.",
               "$ref": "DOM.Rect"
             }
           ]
@@ -4116,6 +4858,13 @@
               "description": "Frame id to navigate, if not specified navigates the top frame.",
               "optional": true,
               "$ref": "FrameId"
+            },
+            {
+              "name": "referrerPolicy",
+              "description": "Referrer-policy used for the navigation.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "ReferrerPolicy"
             }
           ],
           "returns": [
@@ -4126,7 +4875,7 @@
             },
             {
               "name": "loaderId",
-              "description": "Loader identifier.",
+              "description": "Loader identifier. This is omitted in case of same-document navigation,\nas the previously committed loaderId would not change.",
               "optional": true,
               "$ref": "Network.LoaderId"
             },
@@ -4215,15 +4964,9 @@
             },
             {
               "name": "pageRanges",
-              "description": "Paper ranges to print, e.g., '1-5, 8, 11-13'. Defaults to the empty string, which means\nprint all pages.",
+              "description": "Paper ranges to print, one based, e.g., '1-5, 8, 11-13'. Pages are\nprinted in the document order, not in the order specified, and no\nmore than once.\nDefaults to empty string, which implies the entire document is printed.\nThe page numbers are quietly capped to actual page count of the\ndocument, and ranges beyond the end of the document are ignored.\nIf this results in no pages to print, an error is reported.\nIt is an error to specify a range with start greater than end.",
               "optional": true,
               "type": "string"
-            },
-            {
-              "name": "ignoreInvalidPageRanges",
-              "description": "Whether to silently ignore invalid but successfully parsed page ranges, such as '3-2'.\nDefaults to false.",
-              "optional": true,
-              "type": "boolean"
             },
             {
               "name": "headerTemplate",
@@ -4253,12 +4996,26 @@
                 "ReturnAsBase64",
                 "ReturnAsStream"
               ]
+            },
+            {
+              "name": "generateTaggedPDF",
+              "description": "Whether or not to generate tagged (accessible) PDF. Defaults to embedder choice.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "generateDocumentOutline",
+              "description": "Whether or not to embed the document outline into the PDF.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
             }
           ],
           "returns": [
             {
               "name": "data",
-              "description": "Base64-encoded pdf data. Empty if |returnAsStream| is specified.",
+              "description": "Base64-encoded pdf data. Empty if |returnAsStream| is specified. (Encoded as a base64 string when passed over JSON)",
               "type": "string"
             },
             {
@@ -4334,12 +5091,26 @@
           "description": "Emitted only when `page.interceptFileChooser` is enabled.",
           "parameters": [
             {
+              "name": "frameId",
+              "description": "Id of the frame containing input node.",
+              "experimental": true,
+              "$ref": "FrameId"
+            },
+            {
               "name": "mode",
+              "description": "Input mode.",
               "type": "string",
               "enum": [
                 "selectSingle",
                 "selectMultiple"
               ]
+            },
+            {
+              "name": "backendNodeId",
+              "description": "Input node id. Only present for file choosers opened via an `<input type=\"file\">` element.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "DOM.BackendNodeId"
             }
           ]
         },
@@ -4373,6 +5144,15 @@
               "name": "frameId",
               "description": "Id of the frame that has been detached.",
               "$ref": "FrameId"
+            },
+            {
+              "name": "reason",
+              "experimental": true,
+              "type": "string",
+              "enum": [
+                "remove",
+                "swap"
+              ]
             }
           ]
         },
@@ -4384,6 +5164,11 @@
               "name": "frame",
               "description": "Frame object.",
               "$ref": "Frame"
+            },
+            {
+              "name": "type",
+              "experimental": true,
+              "$ref": "NavigationType"
             }
           ]
         },
@@ -4535,7 +5320,19 @@
         },
         {
           "name": "enable",
-          "description": "Enable collecting and reporting metrics."
+          "description": "Enable collecting and reporting metrics.",
+          "parameters": [
+            {
+              "name": "timeDomain",
+              "description": "Time domain to use for collecting and reporting duration metrics.",
+              "optional": true,
+              "type": "string",
+              "enum": [
+                "timeTicks",
+                "threadTicks"
+              ]
+            }
+          ]
         },
         {
           "name": "getMetrics",
@@ -4602,7 +5399,8 @@
             "neutral",
             "insecure",
             "secure",
-            "info"
+            "info",
+            "insecure-broken"
           ]
         },
         {
@@ -4674,45 +5472,7 @@
           "description": "Enables tracking security state changes."
         }
       ],
-      "events": [
-        {
-          "name": "securityStateChanged",
-          "description": "The security state of the page changed.",
-          "parameters": [
-            {
-              "name": "securityState",
-              "description": "Security state.",
-              "$ref": "SecurityState"
-            },
-            {
-              "name": "schemeIsCryptographic",
-              "description": "True if the page was loaded over cryptographic transport such as HTTPS.",
-              "deprecated": true,
-              "type": "boolean"
-            },
-            {
-              "name": "explanations",
-              "description": "List of explanations for the security state. If the overall security state is `insecure` or\n`warning`, at least one corresponding explanation should be included.",
-              "type": "array",
-              "items": {
-                "$ref": "SecurityStateExplanation"
-              }
-            },
-            {
-              "name": "insecureContentStatus",
-              "description": "Information about insecure content on the page.",
-              "deprecated": true,
-              "$ref": "InsecureContentStatus"
-            },
-            {
-              "name": "summary",
-              "description": "Overrides user-visible description of the state.",
-              "optional": true,
-              "type": "string"
-            }
-          ]
-        }
-      ]
+      "events": []
     },
     {
       "domain": "Target",
@@ -4759,10 +5519,30 @@
               "$ref": "TargetID"
             },
             {
+              "name": "canAccessOpener",
+              "description": "Whether the target has access to the originating window.",
+              "experimental": true,
+              "type": "boolean"
+            },
+            {
+              "name": "openerFrameId",
+              "description": "Frame id of originating window (is only set if target has an opener).",
+              "experimental": true,
+              "optional": true,
+              "$ref": "Page.FrameId"
+            },
+            {
               "name": "browserContextId",
               "experimental": true,
               "optional": true,
-              "$ref": "BrowserContextID"
+              "$ref": "Browser.BrowserContextID"
+            },
+            {
+              "name": "subtype",
+              "description": "Provides additional details for specific target types. For example, for\nthe type of \"page\", this may be set to \"portal\" or \"prerender\".",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
             }
           ]
         }
@@ -4788,8 +5568,7 @@
             },
             {
               "name": "flatten",
-              "description": "Enables \"flat\" access to the session via specifying sessionId attribute in the commands.",
-              "experimental": true,
+              "description": "Enables \"flat\" access to the session via specifying sessionId attribute in the commands.\nWe plan to make this the default, deprecate non-flattened mode,\nand eventually retire it. See crbug.com/991325.",
               "optional": true,
               "type": "boolean"
             }
@@ -4814,6 +5593,8 @@
           "returns": [
             {
               "name": "success",
+              "description": "Always set to true. If an error occurs, the response indicates protocol error.",
+              "deprecated": true,
               "type": "boolean"
             }
           ]
@@ -4824,7 +5605,7 @@
           "parameters": [
             {
               "name": "url",
-              "description": "The initial URL the page will be navigated to.",
+              "description": "The initial URL the page will be navigated to. An empty string indicates about:blank.",
               "type": "string"
             },
             {
@@ -4842,8 +5623,9 @@
             {
               "name": "browserContextId",
               "description": "The browser context to create the page in.",
+              "experimental": true,
               "optional": true,
-              "$ref": "BrowserContextID"
+              "$ref": "Browser.BrowserContextID"
             },
             {
               "name": "enableBeginFrameControl",
@@ -4861,6 +5643,13 @@
             {
               "name": "background",
               "description": "Whether to create the target in background or foreground (chrome-only,\nfalse by default).",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "forTab",
+              "description": "Whether to create the target of type \"tab\".",
+              "experimental": true,
               "optional": true,
               "type": "boolean"
             }
@@ -4895,6 +5684,15 @@
         {
           "name": "getTargets",
           "description": "Retrieves a list of available targets.",
+          "parameters": [
+            {
+              "name": "filter",
+              "description": "Only targets matching filter will be reported. If filter is not specified\nand target discovery is currently enabled, a filter used for target discovery\nis used for consistency.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "TargetFilter"
+            }
+          ],
           "returns": [
             {
               "name": "targetInfos",
@@ -4907,29 +5705,6 @@
           ]
         },
         {
-          "name": "sendMessageToTarget",
-          "description": "Sends protocol message over session with given id.",
-          "parameters": [
-            {
-              "name": "message",
-              "type": "string"
-            },
-            {
-              "name": "sessionId",
-              "description": "Identifier of the session.",
-              "optional": true,
-              "$ref": "SessionID"
-            },
-            {
-              "name": "targetId",
-              "description": "Deprecated.",
-              "deprecated": true,
-              "optional": true,
-              "$ref": "TargetID"
-            }
-          ]
-        },
-        {
           "name": "setDiscoverTargets",
           "description": "Controls whether to discover available targets and notify via\n`targetCreated/targetInfoChanged/targetDestroyed` events.",
           "parameters": [
@@ -4937,6 +5712,13 @@
               "name": "discover",
               "description": "Whether to discover available targets.",
               "type": "boolean"
+            },
+            {
+              "name": "filter",
+              "description": "Only targets matching filter will be attached. If `discover` is false,\n`filter` must be omitted or empty.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "TargetFilter"
             }
           ]
         }
@@ -5017,6 +5799,416 @@
       ]
     },
     {
+      "domain": "Fetch",
+      "description": "A domain for letting clients substitute browser's network layer with client code.",
+      "dependencies": [
+        "Network",
+        "IO",
+        "Page"
+      ],
+      "types": [
+        {
+          "id": "RequestId",
+          "description": "Unique request identifier.",
+          "type": "string"
+        },
+        {
+          "id": "RequestStage",
+          "description": "Stages of the request to handle. Request will intercept before the request is\nsent. Response will intercept after the response is received (but before response\nbody is received).",
+          "type": "string",
+          "enum": [
+            "Request",
+            "Response"
+          ]
+        },
+        {
+          "id": "RequestPattern",
+          "type": "object",
+          "properties": [
+            {
+              "name": "urlPattern",
+              "description": "Wildcards (`'*'` -> zero or more, `'?'` -> exactly one) are allowed. Escape character is\nbackslash. Omitting is equivalent to `\"*\"`.",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "resourceType",
+              "description": "If set, only requests for matching resource types will be intercepted.",
+              "optional": true,
+              "$ref": "Network.ResourceType"
+            },
+            {
+              "name": "requestStage",
+              "description": "Stage at which to begin intercepting requests. Default is Request.",
+              "optional": true,
+              "$ref": "RequestStage"
+            }
+          ]
+        },
+        {
+          "id": "HeaderEntry",
+          "description": "Response HTTP header entry",
+          "type": "object",
+          "properties": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "AuthChallenge",
+          "description": "Authorization challenge for HTTP status code 401 or 407.",
+          "type": "object",
+          "properties": [
+            {
+              "name": "source",
+              "description": "Source of the authentication challenge.",
+              "optional": true,
+              "type": "string",
+              "enum": [
+                "Server",
+                "Proxy"
+              ]
+            },
+            {
+              "name": "origin",
+              "description": "Origin of the challenger.",
+              "type": "string"
+            },
+            {
+              "name": "scheme",
+              "description": "The authentication scheme used, such as basic or digest",
+              "type": "string"
+            },
+            {
+              "name": "realm",
+              "description": "The realm of the challenge. May be empty.",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "AuthChallengeResponse",
+          "description": "Response to an AuthChallenge.",
+          "type": "object",
+          "properties": [
+            {
+              "name": "response",
+              "description": "The decision on what to do in response to the authorization challenge.  Default means\ndeferring to the default behavior of the net stack, which will likely either the Cancel\nauthentication or display a popup dialog box.",
+              "type": "string",
+              "enum": [
+                "Default",
+                "CancelAuth",
+                "ProvideCredentials"
+              ]
+            },
+            {
+              "name": "username",
+              "description": "The username to provide, possibly empty. Should only be set if response is\nProvideCredentials.",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "password",
+              "description": "The password to provide, possibly empty. Should only be set if response is\nProvideCredentials.",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "disable",
+          "description": "Disables the fetch domain."
+        },
+        {
+          "name": "enable",
+          "description": "Enables issuing of requestPaused events. A request will be paused until client\ncalls one of failRequest, fulfillRequest or continueRequest/continueWithAuth.",
+          "parameters": [
+            {
+              "name": "patterns",
+              "description": "If specified, only requests matching any of these patterns will produce\nfetchRequested event and will be paused until clients response. If not set,\nall requests will be affected.",
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "RequestPattern"
+              }
+            },
+            {
+              "name": "handleAuthRequests",
+              "description": "If true, authRequired events will be issued and requests will be paused\nexpecting a call to continueWithAuth.",
+              "optional": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        {
+          "name": "failRequest",
+          "description": "Causes the request to fail with specified reason.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "An id the client received in requestPaused event.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "errorReason",
+              "description": "Causes the request to fail with the given reason.",
+              "$ref": "Network.ErrorReason"
+            }
+          ]
+        },
+        {
+          "name": "fulfillRequest",
+          "description": "Provides response to the request.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "An id the client received in requestPaused event.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "responseCode",
+              "description": "An HTTP response code.",
+              "type": "integer"
+            },
+            {
+              "name": "responseHeaders",
+              "description": "Response headers.",
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "HeaderEntry"
+              }
+            },
+            {
+              "name": "binaryResponseHeaders",
+              "description": "Alternative way of specifying response headers as a \\0-separated\nseries of name: value pairs. Prefer the above method unless you\nneed to represent some non-UTF8 values that can't be transmitted\nover the protocol as text. (Encoded as a base64 string when passed over JSON)",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "body",
+              "description": "A response body. If absent, original response body will be used if\nthe request is intercepted at the response stage and empty body\nwill be used if the request is intercepted at the request stage. (Encoded as a base64 string when passed over JSON)",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "responsePhrase",
+              "description": "A textual representation of responseCode.\nIf absent, a standard phrase matching responseCode is used.",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "name": "continueRequest",
+          "description": "Continues the request, optionally modifying some of its parameters.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "An id the client received in requestPaused event.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "url",
+              "description": "If set, the request url will be modified in a way that's not observable by page.",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "method",
+              "description": "If set, the request method is overridden.",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "postData",
+              "description": "If set, overrides the post data in the request. (Encoded as a base64 string when passed over JSON)",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "headers",
+              "description": "If set, overrides the request headers. Note that the overrides do not\nextend to subsequent redirect hops, if a redirect happens. Another override\nmay be applied to a different request produced by a redirect.",
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "HeaderEntry"
+              }
+            },
+            {
+              "name": "interceptResponse",
+              "description": "If set, overrides response interception behavior for this request.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        {
+          "name": "continueWithAuth",
+          "description": "Continues a request supplying authChallengeResponse following authRequired event.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "An id the client received in authRequired event.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "authChallengeResponse",
+              "description": "Response to  with an authChallenge.",
+              "$ref": "AuthChallengeResponse"
+            }
+          ]
+        },
+        {
+          "name": "getResponseBody",
+          "description": "Causes the body of the response to be received from the server and\nreturned as a single string. May only be issued for a request that\nis paused in the Response stage and is mutually exclusive with\ntakeResponseBodyForInterceptionAsStream. Calling other methods that\naffect the request or disabling fetch domain before body is received\nresults in an undefined behavior.\nNote that the response body is not available for redirects. Requests\npaused in the _redirect received_ state may be differentiated by\n`responseCode` and presence of `location` response header, see\ncomments to `requestPaused` for details.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "Identifier for the intercepted request to get body for.",
+              "$ref": "RequestId"
+            }
+          ],
+          "returns": [
+            {
+              "name": "body",
+              "description": "Response body.",
+              "type": "string"
+            },
+            {
+              "name": "base64Encoded",
+              "description": "True, if content was sent as base64.",
+              "type": "boolean"
+            }
+          ]
+        },
+        {
+          "name": "takeResponseBodyAsStream",
+          "description": "Returns a handle to the stream representing the response body.\nThe request must be paused in the HeadersReceived stage.\nNote that after this command the request can't be continued\nas is -- client either needs to cancel it or to provide the\nresponse body.\nThe stream only supports sequential read, IO.read will fail if the position\nis specified.\nThis method is mutually exclusive with getResponseBody.\nCalling other methods that affect the request or disabling fetch\ndomain before body is received results in an undefined behavior.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "$ref": "RequestId"
+            }
+          ],
+          "returns": [
+            {
+              "name": "stream",
+              "$ref": "IO.StreamHandle"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "name": "requestPaused",
+          "description": "Issued when the domain is enabled and the request URL matches the\nspecified filter. The request is paused until the client responds\nwith one of continueRequest, failRequest or fulfillRequest.\nThe stage of the request can be determined by presence of responseErrorReason\nand responseStatusCode -- the request is at the response stage if either\nof these fields is present and in the request stage otherwise.\nRedirect responses and subsequent requests are reported similarly to regular\nresponses and requests. Redirect responses may be distinguished by the value\nof `responseStatusCode` (which is one of 301, 302, 303, 307, 308) along with\npresence of the `location` header. Requests resulting from a redirect will\nhave `redirectedRequestId` field set.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "Each request the page makes will have a unique id.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "request",
+              "description": "The details of the request.",
+              "$ref": "Network.Request"
+            },
+            {
+              "name": "frameId",
+              "description": "The id of the frame that initiated the request.",
+              "$ref": "Page.FrameId"
+            },
+            {
+              "name": "resourceType",
+              "description": "How the requested resource will be used.",
+              "$ref": "Network.ResourceType"
+            },
+            {
+              "name": "responseErrorReason",
+              "description": "Response error if intercepted at response stage.",
+              "optional": true,
+              "$ref": "Network.ErrorReason"
+            },
+            {
+              "name": "responseStatusCode",
+              "description": "Response code if intercepted at response stage.",
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "responseStatusText",
+              "description": "Response status text if intercepted at response stage.",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "responseHeaders",
+              "description": "Response headers if intercepted at the response stage.",
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "HeaderEntry"
+              }
+            },
+            {
+              "name": "networkId",
+              "description": "If the intercepted request had a corresponding Network.requestWillBeSent event fired for it,\nthen this networkId will be the same as the requestId present in the requestWillBeSent event.",
+              "optional": true,
+              "$ref": "Network.RequestId"
+            },
+            {
+              "name": "redirectedRequestId",
+              "description": "If the request is due to a redirect response from the server, the id of the request that\nhas caused the redirect.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "RequestId"
+            }
+          ]
+        },
+        {
+          "name": "authRequired",
+          "description": "Issued when the domain is enabled with handleAuthRequests set to true.\nThe request is paused until client responds with continueWithAuth.",
+          "parameters": [
+            {
+              "name": "requestId",
+              "description": "Each request the page makes will have a unique id.",
+              "$ref": "RequestId"
+            },
+            {
+              "name": "request",
+              "description": "The details of the request.",
+              "$ref": "Network.Request"
+            },
+            {
+              "name": "frameId",
+              "description": "The id of the frame that initiated the request.",
+              "$ref": "Page.FrameId"
+            },
+            {
+              "name": "resourceType",
+              "description": "How the requested resource will be used.",
+              "$ref": "Network.ResourceType"
+            },
+            {
+              "name": "authChallenge",
+              "description": "Details of the Authorization Challenge encountered.\nIf this is set, client should respond with continueRequest that\ncontains AuthChallengeResponse.",
+              "$ref": "AuthChallenge"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "domain": "Debugger",
       "description": "Debugger domain exposes JavaScript debugging capabilities. It allows setting and removing\nbreakpoints, stepping through execution, exploring stack traces, etc.",
       "dependencies": [
@@ -5084,7 +6276,8 @@
             },
             {
               "name": "url",
-              "description": "JavaScript script name or url.",
+              "description": "JavaScript script name or url.\nDeprecated in favor of using the `location.scriptId` to resolve the URL via a previously\nsent `Debugger.scriptParsed` event.",
+              "deprecated": true,
               "type": "string"
             },
             {
@@ -5105,6 +6298,13 @@
               "description": "The value being returned, if the function is at return point.",
               "optional": true,
               "$ref": "Runtime.RemoteObject"
+            },
+            {
+              "name": "canBeRestarted",
+              "description": "Valid only while the VM is paused and indicates whether this frame\ncan be restarted or not. Note that a `true` value here does not\nguarantee that Debugger#restartFrame with this CallFrameId will be\nsuccessful, but it is very likely.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
             }
           ]
         },
@@ -5126,7 +6326,8 @@
                 "block",
                 "script",
                 "eval",
-                "module"
+                "module",
+                "wasm-expression-stack"
               ]
             },
             {
@@ -5201,6 +6402,39 @@
               ]
             }
           ]
+        },
+        {
+          "id": "ScriptLanguage",
+          "description": "Enum of possible script languages.",
+          "type": "string",
+          "enum": [
+            "JavaScript",
+            "WebAssembly"
+          ]
+        },
+        {
+          "id": "DebugSymbols",
+          "description": "Debug symbols available for a wasm script.",
+          "type": "object",
+          "properties": [
+            {
+              "name": "type",
+              "description": "Type of the debug symbols.",
+              "type": "string",
+              "enum": [
+                "None",
+                "SourceMap",
+                "EmbeddedDWARF",
+                "ExternalDWARF"
+              ]
+            },
+            {
+              "name": "externalURL",
+              "description": "URL of the external symbol source.",
+              "optional": true,
+              "type": "string"
+            }
+          ]
         }
       ],
       "commands": [
@@ -5234,7 +6468,7 @@
           "parameters": [
             {
               "name": "maxScriptsCacheSize",
-              "description": "The maximum size in bytes of collected scripts (not referenced by other heap objects)\nthe debugger can hold. Puts no limit if paramter is omitted.",
+              "description": "The maximum size in bytes of collected scripts (not referenced by other heap objects)\nthe debugger can hold. Puts no limit if parameter is omitted.",
               "experimental": true,
               "optional": true,
               "type": "number"
@@ -5368,7 +6602,13 @@
           "returns": [
             {
               "name": "scriptSource",
-              "description": "Script source.",
+              "description": "Script source (empty in case of Wasm bytecode).",
+              "type": "string"
+            },
+            {
+              "name": "bytecode",
+              "description": "Wasm bytecode. (Encoded as a base64 string when passed over JSON)",
+              "optional": true,
               "type": "string"
             }
           ]
@@ -5389,18 +6629,29 @@
         },
         {
           "name": "restartFrame",
-          "description": "Restarts particular call frame from the beginning.",
+          "description": "Restarts particular call frame from the beginning. The old, deprecated\nbehavior of `restartFrame` is to stay paused and allow further CDP commands\nafter a restart was scheduled. This can cause problems with restarting, so\nwe now continue execution immediatly after it has been scheduled until we\nreach the beginning of the restarted frame.\n\nTo stay back-wards compatible, `restartFrame` now expects a `mode`\nparameter to be present. If the `mode` parameter is missing, `restartFrame`\nerrors out.\n\nThe various return values are deprecated and `callFrames` is always empty.\nUse the call frames from the `Debugger#paused` events instead, that fires\nonce V8 pauses at the beginning of the restarted function.",
           "parameters": [
             {
               "name": "callFrameId",
               "description": "Call frame identifier to evaluate on.",
               "$ref": "CallFrameId"
+            },
+            {
+              "name": "mode",
+              "description": "The `mode` parameter must be present and set to 'StepInto', otherwise\n`restartFrame` will error out.",
+              "experimental": true,
+              "optional": true,
+              "type": "string",
+              "enum": [
+                "StepInto"
+              ]
             }
           ],
           "returns": [
             {
               "name": "callFrames",
               "description": "New stack trace.",
+              "deprecated": true,
               "type": "array",
               "items": {
                 "$ref": "CallFrame"
@@ -5409,13 +6660,14 @@
             {
               "name": "asyncStackTrace",
               "description": "Async stack trace, if any.",
+              "deprecated": true,
               "optional": true,
               "$ref": "Runtime.StackTrace"
             },
             {
               "name": "asyncStackTraceId",
               "description": "Async stack trace, if any.",
-              "experimental": true,
+              "deprecated": true,
               "optional": true,
               "$ref": "Runtime.StackTraceId"
             }
@@ -5423,7 +6675,15 @@
         },
         {
           "name": "resume",
-          "description": "Resumes JavaScript execution."
+          "description": "Resumes JavaScript execution.",
+          "parameters": [
+            {
+              "name": "terminateOnResume",
+              "description": "Set to true to terminate execution upon resuming execution. In contrast\nto Runtime.terminateExecution, this will allows to execute further\nJavaScript (i.e. via evaluation) until execution of the paused code\nis actually resumed, at which point termination is triggered.\nIf execution is currently not paused, this parameter has no effect.",
+              "optional": true,
+              "type": "boolean"
+            }
+          ]
         },
         {
           "name": "searchInContent",
@@ -5594,7 +6854,7 @@
         },
         {
           "name": "setPauseOnExceptions",
-          "description": "Defines pause on exceptions state. Can be set to stop on all exceptions, uncaught exceptions or\nno exceptions. Initial pause on exceptions state is `none`.",
+          "description": "Defines pause on exceptions state. Can be set to stop on all exceptions, uncaught exceptions,\nor caught exceptions, no exceptions. Initial pause on exceptions state is `none`.",
           "parameters": [
             {
               "name": "state",
@@ -5602,6 +6862,7 @@
               "type": "string",
               "enum": [
                 "none",
+                "caught",
                 "uncaught",
                 "all"
               ]
@@ -5610,7 +6871,7 @@
         },
         {
           "name": "setScriptSource",
-          "description": "Edits JavaScript source live.",
+          "description": "Edits JavaScript source live.\n\nIn general, functions that are currently on the stack can not be edited with\na single exception: If the edited function is the top-most stack frame and\nthat is the only activation of that function on the stack. In this case\nthe live edit will be successful and a `Debugger.restartFrame` for the\ntop-most function is automatically triggered.",
           "parameters": [
             {
               "name": "scriptId",
@@ -5627,12 +6888,20 @@
               "description": "If true the change will not actually be applied. Dry run may be used to get result\ndescription without actually modifying the code.",
               "optional": true,
               "type": "boolean"
+            },
+            {
+              "name": "allowTopFrameEditing",
+              "description": "If true, then `scriptSource` is allowed to change the function on top of the stack\nas long as the top-most stack frame is the only activation of that function.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
             }
           ],
           "returns": [
             {
               "name": "callFrames",
               "description": "New stack trace in case editing has happened while VM was stopped.",
+              "deprecated": true,
               "optional": true,
               "type": "array",
               "items": {
@@ -5642,25 +6911,40 @@
             {
               "name": "stackChanged",
               "description": "Whether current call stack  was modified after applying the changes.",
+              "deprecated": true,
               "optional": true,
               "type": "boolean"
             },
             {
               "name": "asyncStackTrace",
               "description": "Async stack trace, if any.",
+              "deprecated": true,
               "optional": true,
               "$ref": "Runtime.StackTrace"
             },
             {
               "name": "asyncStackTraceId",
               "description": "Async stack trace, if any.",
-              "experimental": true,
+              "deprecated": true,
               "optional": true,
               "$ref": "Runtime.StackTraceId"
             },
             {
+              "name": "status",
+              "description": "Whether the operation was successful or not. Only `Ok` denotes a\nsuccessful live edit while the other enum variants denote why\nthe live edit failed.",
+              "experimental": true,
+              "type": "string",
+              "enum": [
+                "Ok",
+                "CompileError",
+                "BlockedByActiveGenerator",
+                "BlockedByActiveFunction",
+                "BlockedByTopLevelEsModuleChange"
+              ]
+            },
+            {
               "name": "exceptionDetails",
-              "description": "Exception details if any.",
+              "description": "Exception details if any. Only present when `status` is `CompileError`.",
               "optional": true,
               "$ref": "Runtime.ExceptionDetails"
             }
@@ -5709,10 +6993,20 @@
           "parameters": [
             {
               "name": "breakOnAsyncCall",
-              "description": "Debugger will issue additional Debugger.paused notification if any async task is scheduled\nbefore next pause.",
+              "description": "Debugger will pause on the execution of the first async task which was scheduled\nbefore next pause.",
               "experimental": true,
               "optional": true,
               "type": "boolean"
+            },
+            {
+              "name": "skipList",
+              "description": "The skipList specifies location ranges that should be skipped on step into.",
+              "experimental": true,
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "LocationRange"
+              }
             }
           ]
         },
@@ -5722,7 +7016,19 @@
         },
         {
           "name": "stepOver",
-          "description": "Steps over the statement."
+          "description": "Steps over the statement.",
+          "parameters": [
+            {
+              "name": "skipList",
+              "description": "The skipList specifies location ranges that should be skipped on step over.",
+              "experimental": true,
+              "optional": true,
+              "type": "array",
+              "items": {
+                "$ref": "LocationRange"
+              }
+            }
+          ]
         }
       ],
       "events": [
@@ -5761,6 +7067,7 @@
               "enum": [
                 "ambiguous",
                 "assert",
+                "CSPViolation",
                 "debugCommand",
                 "DOM",
                 "EventListener",
@@ -5769,7 +7076,8 @@
                 "OOM",
                 "other",
                 "promiseRejection",
-                "XHR"
+                "XHR",
+                "step"
               ]
             },
             {
@@ -5802,8 +7110,9 @@
             },
             {
               "name": "asyncCallStackTraceId",
-              "description": "Just scheduled async call will have this stack trace as parent stack during async execution.\nThis field is available only after `Debugger.stepInto` call with `breakOnAsynCall` flag.",
+              "description": "Never present, will be removed.",
               "experimental": true,
+              "deprecated": true,
               "optional": true,
               "$ref": "Runtime.StackTraceId"
             }
@@ -5854,12 +7163,12 @@
             },
             {
               "name": "hash",
-              "description": "Content hash of the script.",
+              "description": "Content hash of the script, SHA-256.",
               "type": "string"
             },
             {
               "name": "executionContextAuxData",
-              "description": "Embedder-specific auxiliary data.",
+              "description": "Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}",
               "optional": true,
               "type": "object"
             },
@@ -5893,6 +7202,27 @@
               "experimental": true,
               "optional": true,
               "$ref": "Runtime.StackTrace"
+            },
+            {
+              "name": "codeOffset",
+              "description": "If the scriptLanguage is WebAssembly, the code section offset in the module.",
+              "experimental": true,
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "scriptLanguage",
+              "description": "The language of the script.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "Debugger.ScriptLanguage"
+            },
+            {
+              "name": "embedderName",
+              "description": "The name the embedder supplied for this script.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
             }
           ]
         },
@@ -5937,12 +7267,12 @@
             },
             {
               "name": "hash",
-              "description": "Content hash of the script.",
+              "description": "Content hash of the script, SHA-256.",
               "type": "string"
             },
             {
               "name": "executionContextAuxData",
-              "description": "Embedder-specific auxiliary data.",
+              "description": "Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}",
               "optional": true,
               "type": "object"
             },
@@ -5983,6 +7313,34 @@
               "experimental": true,
               "optional": true,
               "$ref": "Runtime.StackTrace"
+            },
+            {
+              "name": "codeOffset",
+              "description": "If the scriptLanguage is WebAssembly, the code section offset in the module.",
+              "experimental": true,
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "scriptLanguage",
+              "description": "The language of the script.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "Debugger.ScriptLanguage"
+            },
+            {
+              "name": "debugSymbols",
+              "description": "If the scriptLanguage is WebASsembly, the source of debug symbols for the module.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "Debugger.DebugSymbols"
+            },
+            {
+              "name": "embedderName",
+              "description": "The name the embedder supplied for this script.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
             }
           ]
         }
@@ -6225,6 +7583,19 @@
               "description": "Collect block-based coverage.",
               "optional": true,
               "type": "boolean"
+            },
+            {
+              "name": "allowTriggeredUpdates",
+              "description": "Allow the backend to send updates on its own initiative",
+              "optional": true,
+              "type": "boolean"
+            }
+          ],
+          "returns": [
+            {
+              "name": "timestamp",
+              "description": "Monotonically increasing time (in seconds) when the coverage update was taken in the backend.",
+              "type": "number"
             }
           ]
         },
@@ -6253,6 +7624,11 @@
               "items": {
                 "$ref": "ScriptCoverage"
               }
+            },
+            {
+              "name": "timestamp",
+              "description": "Monotonically increasing time (in seconds) when the coverage update was taken in the backend.",
+              "type": "number"
             }
           ]
         }
@@ -6315,6 +7691,87 @@
           "type": "string"
         },
         {
+          "id": "SerializationOptions",
+          "description": "Represents options for serialization. Overrides `generatePreview` and `returnByValue`.",
+          "type": "object",
+          "properties": [
+            {
+              "name": "serialization",
+              "type": "string",
+              "enum": [
+                "deep",
+                "json",
+                "idOnly"
+              ]
+            },
+            {
+              "name": "maxDepth",
+              "description": "Deep serialization depth. Default is full depth. Respected only in `deep` serialization mode.",
+              "optional": true,
+              "type": "integer"
+            },
+            {
+              "name": "additionalParameters",
+              "description": "Embedder-specific parameters. For example if connected to V8 in Chrome these control DOM\nserialization via `maxNodeDepth: integer` and `includeShadowTree: \"none\" | \"open\" | \"all\"`.\nValues can be only of type string or integer.",
+              "optional": true,
+              "type": "object"
+            }
+          ]
+        },
+        {
+          "id": "DeepSerializedValue",
+          "description": "Represents deep serialized value.",
+          "type": "object",
+          "properties": [
+            {
+              "name": "type",
+              "type": "string",
+              "enum": [
+                "undefined",
+                "null",
+                "string",
+                "number",
+                "boolean",
+                "bigint",
+                "regexp",
+                "date",
+                "symbol",
+                "array",
+                "object",
+                "function",
+                "map",
+                "set",
+                "weakmap",
+                "weakset",
+                "error",
+                "proxy",
+                "promise",
+                "typedarray",
+                "arraybuffer",
+                "node",
+                "window",
+                "generator"
+              ]
+            },
+            {
+              "name": "value",
+              "optional": true,
+              "type": "any"
+            },
+            {
+              "name": "objectId",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "weakLocalObjectReference",
+              "description": "Set if value reference met more then once during serialization. In such\ncase, value is provided only to one of the serialized values. Unique\nper value in the scope of one CDP call.",
+              "optional": true,
+              "type": "integer"
+            }
+          ]
+        },
+        {
           "id": "RemoteObjectId",
           "description": "Unique object identifier.",
           "type": "string"
@@ -6346,7 +7803,7 @@
             },
             {
               "name": "subtype",
-              "description": "Object subtype hint. Specified for `object` type values only.",
+              "description": "Object subtype hint. Specified for `object` type values only.\nNOTE: If you change anything here, make sure to also update\n`subtype` in `ObjectPreview` and `PropertyPreview` below.",
               "optional": true,
               "type": "string",
               "enum": [
@@ -6366,7 +7823,9 @@
                 "promise",
                 "typedarray",
                 "arraybuffer",
-                "dataview"
+                "dataview",
+                "webassemblymemory",
+                "wasmvalue"
               ]
             },
             {
@@ -6392,6 +7851,13 @@
               "description": "String representation of the object.",
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "deepSerializedValue",
+              "description": "Deep serialized value.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "DeepSerializedValue"
             },
             {
               "name": "objectId",
@@ -6547,8 +8013,14 @@
               "type": "string"
             },
             {
+              "name": "uniqueId",
+              "description": "A system-unique execution context identifier. Unlike the id, this is unique across\nmultiple processes, so can be reliably used to identify specific context while backend\nperforms a cross-process navigation.",
+              "experimental": true,
+              "type": "string"
+            },
+            {
               "name": "auxData",
-              "description": "Embedder-specific auxiliary data.",
+              "description": "Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}",
               "optional": true,
               "type": "object"
             }
@@ -6608,6 +8080,13 @@
               "description": "Identifier of the context where exception happened.",
               "optional": true,
               "$ref": "ExecutionContextId"
+            },
+            {
+              "name": "exceptionMetaData",
+              "description": "Dictionary with entries of meta data that the client associated\nwith this exception, such as information about associated network\nrequests, etc.",
+              "experimental": true,
+              "optional": true,
+              "type": "object"
             }
           ]
         },
@@ -6757,7 +8236,7 @@
             },
             {
               "name": "returnByValue",
-              "description": "Whether the result is expected to be a JSON object which should be sent by value.",
+              "description": "Whether the result is expected to be a JSON object which should be sent by value.\nCan be overriden by `serializationOptions`.",
               "optional": true,
               "type": "boolean"
             },
@@ -6791,6 +8270,27 @@
               "description": "Symbolic group name that can be used to release multiple objects. If objectGroup is not\nspecified and objectId is, objectGroup will be inherited from object.",
               "optional": true,
               "type": "string"
+            },
+            {
+              "name": "throwOnSideEffect",
+              "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "uniqueContextId",
+              "description": "An alternative way to specify the execution context to call function on.\nCompared to contextId that may be reused across processes, this is guaranteed to be\nsystem-unique, so it can be used to prevent accidental function call\nin context different than intended (e.g. as a result of navigation across process\nboundaries).\nThis is mutually exclusive with `executionContextId`.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "serializationOptions",
+              "description": "Specifies the result serialization. If provided, overrides\n`generatePreview` and `returnByValue`.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "SerializationOptions"
             }
           ],
           "returns": [
@@ -6889,7 +8389,7 @@
             },
             {
               "name": "contextId",
-              "description": "Specifies in which execution context to perform evaluation. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.",
+              "description": "Specifies in which execution context to perform evaluation. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.\nThis is mutually exclusive with `uniqueContextId`, which offers an\nalternative way to identify the execution context that is more reliable\nin a multi-process environment.",
               "optional": true,
               "$ref": "ExecutionContextId"
             },
@@ -6920,7 +8420,7 @@
             },
             {
               "name": "throwOnSideEffect",
-              "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation.",
+              "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation.\nThis implies `disableBreaks` below.",
               "experimental": true,
               "optional": true,
               "type": "boolean"
@@ -6931,6 +8431,41 @@
               "experimental": true,
               "optional": true,
               "$ref": "TimeDelta"
+            },
+            {
+              "name": "disableBreaks",
+              "description": "Disable breakpoints during execution.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "replMode",
+              "description": "Setting this flag to true enables `let` re-declaration and top-level `await`.\nNote that `let` variables can only be re-declared if they originate from\n`replMode` themselves.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "allowUnsafeEvalBlockedByCSP",
+              "description": "The Content Security Policy (CSP) for the target might block 'unsafe-eval'\nwhich includes eval(), Function(), setTimeout() and setInterval()\nwhen called with non-callable arguments. This flag bypasses CSP for this\nevaluation and allows unsafe-eval. Defaults to true.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "uniqueContextId",
+              "description": "An alternative way to specify the execution context to evaluate in.\nCompared to contextId that may be reused across processes, this is guaranteed to be\nsystem-unique, so it can be used to prevent accidental evaluation of the expression\nin context different than intended (e.g. as a result of navigation across process\nboundaries).\nThis is mutually exclusive with `contextId`.",
+              "experimental": true,
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "serializationOptions",
+              "description": "Specifies the result serialization. If provided, overrides\n`generatePreview` and `returnByValue`.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "SerializationOptions"
             }
           ],
           "returns": [
@@ -6972,6 +8507,13 @@
             {
               "name": "generatePreview",
               "description": "Whether preview should be generated for the results.",
+              "experimental": true,
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "nonIndexedPropertiesOnly",
+              "description": "If true, returns non-indexed properties only.",
               "experimental": true,
               "optional": true,
               "type": "boolean"
@@ -7274,7 +8816,14 @@
             {
               "name": "executionContextId",
               "description": "Id of the destroyed context",
+              "deprecated": true,
               "$ref": "ExecutionContextId"
+            },
+            {
+              "name": "executionContextUniqueId",
+              "description": "Unique Id of the destroyed context",
+              "experimental": true,
+              "type": "string"
             }
           ]
         },
@@ -7293,6 +8842,13 @@
             {
               "name": "hints",
               "type": "object"
+            },
+            {
+              "name": "executionContextId",
+              "description": "Identifier of the context where the call was made.",
+              "experimental": true,
+              "optional": true,
+              "$ref": "ExecutionContextId"
             }
           ]
         }

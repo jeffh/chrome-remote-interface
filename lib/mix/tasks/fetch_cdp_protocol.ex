@@ -10,9 +10,14 @@ defmodule Mix.Tasks.FetchCdpProtocol do
   @shortdoc "Fetches up-to-date versions of all the Chrome Debugger Protocol files."
 
   @protocol_sources %{
+    "1-3" => %{
+      url:
+        "https://raw.githubusercontent.com/ChromeDevTools/debugger-protocol-viewer/refs/heads/master/pages/_data/1-3.json",
+      output: "priv/1-3/protocol.json"
+    },
     "tot" => %{
       url:
-        "https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/8297006455052afdec6b98e5cf96c09a52abde26/json/browser_protocol.json",
+        "https://raw.githubusercontent.com/ChromeDevTools/debugger-protocol-viewer/refs/heads/master/pages/_data/tot.json",
       output: "priv/tot/protocol.json"
     }
   }

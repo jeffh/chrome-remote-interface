@@ -6,11 +6,11 @@ defmodule ChromeRemoteInterface do
   alias ChromeRemoteInterface.PageSession
 
   @protocol_env_key "CRI_PROTOCOL_VERSION"
-  @protocol_versions ["tot"]
+  @protocol_versions ["1-3", "tot"]
   @protocol_version (if (vsn = System.get_env(@protocol_env_key)) in @protocol_versions do
                        vsn
                      else
-                       "tot"
+                       "1-3"
                      end)
   IO.puts(
     "Compiling ChromeRemoteInterface with Chrome DevTools Protocol version: '#{@protocol_version}'"
