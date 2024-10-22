@@ -238,12 +238,11 @@ defmodule ChromeRemoteInterface.PageSession do
   end
 
   def handle_info({:send_rpc_request, ref_id, socket, method, params}, state) do
-    message = %{
+    message =
       state.message_base
-      | "id" => ref_id,
-        "method" => method,
-        "params" => params
-    }
+      |> Map.put("id", ref_id)
+      |> Map.put("method", method)
+      |> Map.put("params", params)
 
     json = Jason.encode!(message)
     WebSockex.send_frame(socket, {:text, json})
