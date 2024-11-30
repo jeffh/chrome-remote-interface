@@ -36,6 +36,8 @@ defmodule ChromeRemoteInterface do
 
       def experimental?(), do: @domain["experimental"]
 
+      IO.puts("ChromeRemoteInterface.RPC.#{domain["domain"]} (#{length(@domain["commands"])})")
+
       for command <- @domain["commands"] do
         name = command["name"]
         description = command["description"]
